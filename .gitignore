@@ -39,7 +39,5 @@ go-api/api
 .env.example
 go-api/.md/
 go-api/info.md
-go-api/main_v2.go
-go-api/pkg/
 supabase-migrations/
 
