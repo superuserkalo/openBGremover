@@ -70,6 +70,7 @@ export default function DashboardPage() {
   }
 
   const handleGenerateAPIKey = async (e: React.FormEvent) => {
+    console.log("Attempting to generate API key...")
     e.preventDefault()
     setIsGeneratingKey(true)
     setNewlyGeneratedKey(null)
