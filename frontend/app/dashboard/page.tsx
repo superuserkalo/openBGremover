@@ -17,6 +17,10 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set())
   const [lastExpandedChart, setLastExpandedChart] = useState<string | null>(null)
+  const [apiKeyName, setApiKeyName] = useState("")
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false)
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null)
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null)
   const router = useRouter()
 
   const toggleChart = (chartId: string) => {
@@ -63,6 +67,45 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push("/")
+  }
+
+  const handleGenerateAPIKey = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsGeneratingKey(true)
+    setNewlyGeneratedKey(null)
+    setApiKeyError(null)
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError || !session) {
+        setApiKeyError("Authentication required to generate API key.")
+        setIsGeneratingKey(false)
+        return
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_GO_GATEWAY_URL}/api/v1/keys`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ name: apiKeyName }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to generate API key.")
+      }
+
+      setNewlyGeneratedKey(data.api_key)
+      setApiKeyName("") // Clear input after successful generation
+    } catch (err: any) {
+      setApiKeyError(err.message || "An unexpected error occurred during API key generation.")
+    } finally {
+      setIsGeneratingKey(false)
+    }
   }
 
   if (loading) {
@@ -758,16 +801,57 @@ export default function DashboardPage() {
 
             {activeSection === "apikeys" && (
               <div>
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">API Key Management</h1>
-                    <p className="text-neutral-400">Create and manage your API keys for authentication.</p>
-                  </div>
-                  <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer">
-                    <Key className="w-4 h-4 mr-2" />
-                    Generate New Key
-                  </Button>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">API Key Management</h1>
+                  <p className="text-neutral-400">Create and manage your API keys for authentication.</p>
                 </div>
+
+                <Card className="bg-neutral-900 border-neutral-800 mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-white">Generate New API Key</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleGenerateAPIKey} className="space-y-4">
+                      <div>
+                        <Label htmlFor="apiKeyName" className="text-neutral-300">
+                          Key Name
+                        </Label>
+                        <Input
+                          id="apiKeyName"
+                          type="text"
+                          value={apiKeyName}
+                          onChange={(e) => setApiKeyName(e.target.value)}
+                          required
+                          className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                          placeholder="e.g., My Production Key"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer"
+                        disabled={isGeneratingKey}
+                      >
+                        {isGeneratingKey ? (
+                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
+                        ) : (
+                          <Key className="w-4 h-4 mr-2" />
+                        )}
+                        Generate New Key
+                      </Button>
+                    </form>
+                    {newlyGeneratedKey && (
+                      <div className="mt-4 p-3 bg-green-400/10 border border-green-400/20 rounded-lg text-green-400 text-sm break-all">
+                        <p className="font-medium mb-2">Your new API Key (save this now!):</p>
+                        <code className="block bg-green-400/20 p-2 rounded">{newlyGeneratedKey}</code>
+                      </div>
+                    )}
+                    {apiKeyError && (
+                      <div className="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-lg text-red-400 text-sm">
+                        {apiKeyError}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 <Card className="bg-neutral-900 border-neutral-800">
                   <CardContent className="p-0">

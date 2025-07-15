@@ -82,11 +82,19 @@ def test_remove_background():
     print("📤 Sending request to gateway...")
     start_time = time.time()
 
+    # IMPORTANT: Replace with a valid API Key generated from your frontend or database
+    API_KEY = "YOUR_GENERATED_API_KEY_HERE" 
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {API_KEY}" 
+    }
+
     try:
         response = requests.post(
             f"{GATEWAY_URL}/api/v1/remove-background",
             json=payload,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             timeout=200  # Long timeout for processing
         )
 
