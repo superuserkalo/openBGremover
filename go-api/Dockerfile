@@ -1,34 +1,52 @@
-# go-api/Dockerfile
+# go-api/Dockerfile - Optimized for v2.0.0
 
 # --- Stage 1: The Builder ---
-# Use a lightweight Alpine-based Go image to build our application
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
-# Set the working directory inside the container
-WORKDIR /app
-
-# Copy the Go module files and download dependencies first for caching
-COPY go.mod go.sum* ./
-RUN go mod download
-
-# Copy the rest of the application source code
-COPY . .
-
-# Build the application into a static binary. This is for the single-file setup.
-RUN CGO_ENABLED=0 go build -o /app/server .
-
-# --- Stage 2: The Final Image ---
-# Use a completely empty 'scratch' image for a tiny and secure final container
-FROM scratch
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
 
 # Set the working directory
 WORKDIR /app
 
-# Copy ONLY the compiled binary from the 'builder' stage
-COPY --from=builder /app/server .
+# Copy dependency files first for better layer caching
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
 
-# Expose the port the Go server will run on
+# Copy source code
+COPY . .
+
+# Build optimized binary with security flags
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o server main_v2.go
+
+# --- Stage 2: Security Scan (optional, comment out for faster builds) ---
+# FROM alpine:latest AS security
+# RUN apk add --no-cache ca-certificates
+# COPY --from=builder /app/server /app/server
+# RUN chmod +x /app/server
+
+# --- Stage 3: Final Runtime Image ---
+FROM scratch
+
+# Copy timezone data and CA certificates from builder
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy the optimized binary
+COPY --from=builder /app/server /server
+
+# Add non-root user (security best practice)
+USER 65534:65534
+
+# Expose the port
 EXPOSE 8080
 
-# The command to run when the container starts
-CMD ["/app/server"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/server", "--health-check"] || exit 1
+
+# Run the server
+ENTRYPOINT ["/server"]

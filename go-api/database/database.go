@@ -107,7 +107,7 @@ func (db *DB) GetProfile(ctx context.Context, userID string) (*Profile, error) {
 		SELECT id, current_billing_model, free_images_remaining, free_images_reset_at,
 		       bulk_images_remaining, payg_usage_this_period, stripe_customer_id,
 		       stripe_subscription_id, created_at, updated_at
-		FROM profiles 
+		FROM profiles
 		WHERE id = $1`
 
 	var profile Profile
@@ -183,8 +183,8 @@ func (db *DB) DecrementCredits(ctx context.Context, userID string) (string, erro
 	var profile Profile
 	query := `
 		SELECT current_billing_model, free_images_remaining, bulk_images_remaining, payg_usage_this_period
-		FROM profiles 
-		WHERE id = $1 
+		FROM profiles
+		WHERE id = $1
 		FOR UPDATE`
 
 	err = tx.QueryRow(ctx, query, userID).Scan(
@@ -232,7 +232,7 @@ func (db *DB) GetAPIKeyByHash(ctx context.Context, hashedKey string) (*APIKey, e
 	query := `
 		SELECT id, user_id, key_name, hashed_key, key_prefix, last_used_at,
 		       is_active, created_at, updated_at
-		FROM api_keys 
+		FROM api_keys
 		WHERE hashed_key = $1 AND is_active = true`
 
 	var apiKey APIKey
@@ -307,10 +307,10 @@ func (db *DB) GetUserStats(ctx context.Context, userID string) (map[string]inter
 	// Get usage counts
 	var totalProcessed, thisMonth int
 	monthQuery := `
-		SELECT 
+		SELECT
 			COUNT(*) as total,
 			COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW())) as this_month
-		FROM usage_logs 
+		FROM usage_logs
 		WHERE user_id = $1 AND was_successful = true`
 
 	err = db.pool.QueryRow(ctx, monthQuery, userID).Scan(&totalProcessed, &thisMonth)
@@ -330,9 +330,9 @@ func (db *DB) GetUserActivity(ctx context.Context, userID string, limit, offset 
 	query := `
 		SELECT id, user_id, api_key_id, source, was_successful, error_message,
 		       processing_time_ms, credit_type_used, created_at
-		FROM usage_logs 
-		WHERE user_id = $1 
-		ORDER BY created_at DESC 
+		FROM usage_logs
+		WHERE user_id = $1
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := db.pool.Query(ctx, query, userID, limit, offset)
@@ -388,4 +388,143 @@ func (db *DB) GetUserActivity(ctx context.Context, userID string, limit, offset 
 	}
 
 	return logs, nil
+}
+
+// CreateAPIKey creates a new API key for a user
+func (db *DB) CreateAPIKey(ctx context.Context, userID, keyName, hashedKey, keyPrefix string) (*APIKey, error) {
+	query := `
+		INSERT INTO api_keys (user_id, key_name, hashed_key, key_prefix, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, true, NOW(), NOW())
+		RETURNING id, user_id, key_name, hashed_key, key_prefix, last_used_at, is_active, created_at, updated_at`
+
+	var apiKey APIKey
+	var lastUsedAt sql.NullTime
+
+	err := db.pool.QueryRow(ctx, query, userID, keyName, hashedKey, keyPrefix).Scan(
+		&apiKey.ID,
+		&apiKey.UserID,
+		&apiKey.KeyName,
+		&apiKey.HashedKey,
+		&apiKey.KeyPrefix,
+		&lastUsedAt,
+		&apiKey.IsActive,
+		&apiKey.CreatedAt,
+		&apiKey.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	if lastUsedAt.Valid {
+		apiKey.LastUsedAt = &lastUsedAt.Time
+	}
+
+	return &apiKey, nil
+}
+
+// GetUserAPIKeys retrieves all API keys for a user
+func (db *DB) GetUserAPIKeys(ctx context.Context, userID string) ([]APIKey, error) {
+	query := `
+		SELECT id, user_id, key_name, hashed_key, key_prefix, last_used_at,
+		       is_active, created_at, updated_at
+		FROM api_keys
+		WHERE user_id = $1
+		ORDER BY created_at DESC`
+
+	rows, err := db.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user API keys: %w", err)
+	}
+	defer rows.Close()
+
+	var apiKeys []APIKey
+	for rows.Next() {
+		var apiKey APIKey
+		var lastUsedAt sql.NullTime
+
+		err := rows.Scan(
+			&apiKey.ID,
+			&apiKey.UserID,
+			&apiKey.KeyName,
+			&apiKey.HashedKey,
+			&apiKey.KeyPrefix,
+			&lastUsedAt,
+			&apiKey.IsActive,
+			&apiKey.CreatedAt,
+			&apiKey.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan API key: %w", err)
+		}
+
+		if lastUsedAt.Valid {
+			apiKey.LastUsedAt = &lastUsedAt.Time
+		}
+
+		apiKeys = append(apiKeys, apiKey)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating API keys: %w", err)
+	}
+
+	return apiKeys, nil
+}
+
+// DeleteAPIKey soft-deletes an API key
+func (db *DB) DeleteAPIKey(ctx context.Context, userID string, keyID int64) error {
+	query := `
+		UPDATE api_keys
+		SET is_active = false, updated_at = NOW()
+		WHERE id = $1 AND user_id = $2`
+
+	result, err := db.pool.Exec(ctx, query, keyID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("API key not found or not owned by user")
+	}
+
+	return nil
+}
+
+// GetAPIKey retrieves a specific API key for a user
+func (db *DB) GetAPIKey(ctx context.Context, userID string, keyID int64) (*APIKey, error) {
+	query := `
+		SELECT id, user_id, key_name, hashed_key, key_prefix, last_used_at,
+		       is_active, created_at, updated_at
+		FROM api_keys
+		WHERE id = $1 AND user_id = $2`
+
+	var apiKey APIKey
+	var lastUsedAt sql.NullTime
+
+	err := db.pool.QueryRow(ctx, query, keyID, userID).Scan(
+		&apiKey.ID,
+		&apiKey.UserID,
+		&apiKey.KeyName,
+		&apiKey.HashedKey,
+		&apiKey.KeyPrefix,
+		&lastUsedAt,
+		&apiKey.IsActive,
+		&apiKey.CreatedAt,
+		&apiKey.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("API key not found")
+		}
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	if lastUsedAt.Valid {
+		apiKey.LastUsedAt = &lastUsedAt.Time
+	}
+
+	return &apiKey, nil
 }
