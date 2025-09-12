@@ -6,6 +6,7 @@ import Link from "next/link"
 import { BackgroundRemovalDemo } from "@/components/background-removal-demo"
 import { XIcon } from "@/components/x-icon"
 import { useState, useEffect } from "react"
+import BackgroundPaths from "@/components/background-paths"
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -176,15 +177,12 @@ export default function HomePage() {
       {/* Hero Section - Mobile Optimized */}
       <section className="pt-20 sm:pt-24 lg:pt-32 pb-12 sm:pb-16 relative">
         {/* Simple hero background */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(251,146,60,0.015),transparent_60%)] animate-pulse-gentle"></div>
+        {/* Decorative animated paths (painted first so gradient overlays it) */}
+        <BackgroundPaths />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(251,146,60,0.015),transparent_60%)] animate-pulse-gentle z-0"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center px-3 sm:px-4 py-2 rounded-full bg-neutral-900 border border-neutral-700 text-neutral-300 text-xs sm:text-sm font-medium mb-6 sm:mb-8 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-              <Github className="w-3 sm:w-4 h-3 sm:h-4 mr-2 group-hover:rotate-12 transition-transform duration-300" />
-              <span className="hidden sm:inline">Open source • Transparent • No vendor lock-in</span>
-              <span className="sm:hidden">Open source • No lock-in</span>
-            </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 sm:mb-8 leading-[1.1] animate-fade-in-up">
               <span className="block text-white hover:scale-105 transition-transform duration-500 inline-block">
