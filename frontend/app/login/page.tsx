@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Github, ArrowLeft } from "lucide-react"
+import { Github, ArrowLeft, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isGithubLoading, setIsGithubLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -126,15 +127,25 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-neutral-300">
                   Password
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
-                  placeholder="Your password"
-                />
+                <div className="mt-1 relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                    placeholder="Your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               {error && (
                 <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
