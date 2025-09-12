@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
+    "github.com/superuserkalo/OpenBGRemover/go-api/errors"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
 )
 
 // RateLimiter implements a simple in-memory token bucket rate limiter
@@ -52,7 +52,7 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 
 		// Get client identifier (IP address or user ID)
 		clientID := rl.getClientID(c)
-		
+
 		// Check rate limit
 		if !rl.allowRequest(clientID) {
 			logger.FromGinContext(c).LogRateLimit(clientID, c.Request.URL.Path)
@@ -90,7 +90,7 @@ func (rl *RateLimiter) allowRequest(clientID string) bool {
 			tokens:     100, // Start with full bucket
 			lastRefill: time.Now(),
 		}
-		
+
 		rl.mutex.Lock()
 		rl.buckets[clientID] = b
 		rl.mutex.Unlock()
@@ -108,7 +108,7 @@ func (b *bucket) consume(tokens int) bool {
 	now := time.Now()
 	elapsed := now.Sub(b.lastRefill)
 	tokensToAdd := int(elapsed.Seconds()) * b.refillRate
-	
+
 	if tokensToAdd > 0 {
 		b.tokens = min(b.capacity, b.tokens+tokensToAdd)
 		b.lastRefill = now

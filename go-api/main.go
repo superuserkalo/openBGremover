@@ -80,6 +80,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(db)
 	healthHandler := handlers.NewHealthHandler(cfg, bgService, startTime)
 	legacyHandler := handlers.NewLegacyHandler(cfg, bgService)
+	billingHandler := handlers.NewBillingHandler(db)
 
 	// Set Gin mode based on environment
 	if cfg.IsProduction() {
@@ -123,6 +124,10 @@ func main() {
 		api.GET("/keys", userHandler.HandleListAPIKeys)
 		api.POST("/keys", userHandler.HandleCreateAPIKey)
 		api.DELETE("/keys/:key_id", userHandler.HandleDeleteAPIKey)
+		api.DELETE("/account", userHandler.HandleDeleteAccount)
+
+		// Billing (MVP): upgrade plan / add bulk credits
+		api.POST("/billing/upgrade", billingHandler.HandleUpgrade)
 	}
 
 	// Legacy routes (no authentication for backward compatibility)

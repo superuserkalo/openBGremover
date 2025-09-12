@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 )
 
 // ValidateImageData validates base64 image data

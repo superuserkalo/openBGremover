@@ -14,7 +14,7 @@ import (
 
 // DB holds the database connection pool and provides database operations
 type DB struct {
-	pool *pgxpool.Pool
+    pool *pgxpool.Pool
 }
 
 // Profile represents a user profile from the profiles table
@@ -299,30 +299,35 @@ func (db *DB) CreateUsageLog(ctx context.Context, log *UsageLog) error {
 
 // GetUserStats retrieves usage statistics for a user
 func (db *DB) GetUserStats(ctx context.Context, userID string) (map[string]interface{}, error) {
-	profile, err := db.GetProfile(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
+    profile, err := db.GetProfile(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
 
-	// Get usage counts
-	var totalProcessed, thisMonth int
-	monthQuery := `
-		SELECT
-			COUNT(*) as total,
-			COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW())) as this_month
-		FROM usage_logs
-		WHERE user_id = $1 AND was_successful = true`
+    // Get usage counts
+    var totalRequests, totalProcessed, thisMonth int
+    statsQuery := `
+        SELECT
+            COUNT(*) AS total_requests,
+            COUNT(*) FILTER (WHERE was_successful = true) AS total_processed,
+            COUNT(*) FILTER (
+                WHERE was_successful = true
+                  AND created_at >= date_trunc('month', NOW())
+            ) AS this_month
+        FROM usage_logs
+        WHERE user_id = $1 AND source IN ('ui','api')`
 
-	err = db.pool.QueryRow(ctx, monthQuery, userID).Scan(&totalProcessed, &thisMonth)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get usage stats: %w", err)
-	}
+    err = db.pool.QueryRow(ctx, statsQuery, userID).Scan(&totalRequests, &totalProcessed, &thisMonth)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get usage stats: %w", err)
+    }
 
-	return map[string]interface{}{
-		"profile":          profile,
-		"images_processed": totalProcessed,
-		"images_this_month": thisMonth,
-	}, nil
+    return map[string]interface{}{
+        "profile":          profile,
+        "api_calls_total":  totalRequests,
+        "images_processed": totalProcessed,
+        "images_this_month": thisMonth,
+    }, nil
 }
 
 // GetUserActivity retrieves recent activity for a user with pagination
@@ -527,4 +532,29 @@ func (db *DB) GetAPIKey(ctx context.Context, userID string, keyID int64) (*APIKe
 	}
 
 	return &apiKey, nil
+}
+
+// DeleteUserData removes all application data for a user
+func (db *DB) DeleteUserData(ctx context.Context, userID string) error {
+    tx, err := db.pool.Begin(ctx)
+    if err != nil {
+        return fmt.Errorf("failed to begin txn: %w", err)
+    }
+    defer tx.Rollback(ctx)
+
+    // Order: usage logs -> api keys -> profile
+    if _, err := tx.Exec(ctx, "DELETE FROM usage_logs WHERE user_id = $1", userID); err != nil {
+        return fmt.Errorf("failed to delete usage logs: %w", err)
+    }
+    if _, err := tx.Exec(ctx, "DELETE FROM api_keys WHERE user_id = $1", userID); err != nil {
+        return fmt.Errorf("failed to delete api keys: %w", err)
+    }
+    if _, err := tx.Exec(ctx, "DELETE FROM profiles WHERE id = $1", userID); err != nil {
+        return fmt.Errorf("failed to delete profile: %w", err)
+    }
+
+    if err := tx.Commit(ctx); err != nil {
+        return fmt.Errorf("failed to commit user data deletion: %w", err)
+    }
+    return nil
 }

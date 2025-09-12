@@ -1,12 +1,18 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
+    "context"
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+    "strconv"
+    "strings"
+    "time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/superuserkalo/OpenBGRemover/go-api/auth"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/validation"
@@ -46,14 +52,15 @@ func (h *UserHandler) HandleStats(c *gin.Context) {
 		return
 	}
 
-	response := models.StatsResponse{
-		Success:           true,
-		ImagesProcessed:   stats["images_processed"].(int),
-		ImagesThisMonth:   stats["images_this_month"].(int),
-		FreeCredits:       profile.FreeImagesRemaining,
-		BulkCredits:       profile.BulkImagesRemaining,
-		BillingModel:      profile.CurrentBillingModel,
-	}
+    response := models.StatsResponse{
+        Success:         true,
+        APICallsTotal:   stats["api_calls_total"].(int),
+        ImagesProcessed: stats["images_processed"].(int),
+        ImagesThisMonth: stats["images_this_month"].(int),
+        FreeCredits:     profile.FreeImagesRemaining,
+        BulkCredits:     profile.BulkImagesRemaining,
+        BillingModel:    profile.CurrentBillingModel,
+    }
 
 	c.JSON(http.StatusOK, response)
 }
@@ -233,6 +240,22 @@ func (h *UserHandler) HandleCreateAPIKey(c *gin.Context) {
 		Int64("key_id", createdKey.ID).
 		Msg("API key created successfully")
 
+	// Record activity log for API key creation (non-blocking best-effort)
+    go func() {
+        logEntry := &database.UsageLog{
+            UserID:        userID.(string),
+            APIKeyID:      &createdKey.ID,
+            Source:        "api_keys",
+            WasSuccessful: true,
+        }
+        if err := h.db.CreateUsageLog(context.Background(), logEntry); err != nil {
+            logger.FromGinContext(c).LogError(err, "Failed to record API key creation usage log", map[string]interface{}{
+                "user_id": userID.(string),
+                "key_id":  createdKey.ID,
+            })
+        }
+    }()
+
 	response := models.CreateAPIKeyResponse{
 		Success: true,
 		APIKey:  apiKey, // Return plaintext key (only time it's visible)
@@ -294,8 +317,88 @@ func (h *UserHandler) HandleDeleteAPIKey(c *gin.Context) {
 		Str("key_prefix", apiKey.KeyPrefix).
 		Msg("API key deleted successfully")
 
+	// Record activity log for API key deletion (non-blocking best-effort)
+    go func() {
+        logEntry := &database.UsageLog{
+            UserID:        userID.(string),
+            APIKeyID:      &keyID,
+            Source:        "api_keys_delete",
+            WasSuccessful: true,
+        }
+        if err := h.db.CreateUsageLog(context.Background(), logEntry); err != nil {
+            logger.FromGinContext(c).LogError(err, "Failed to record API key deletion usage log", map[string]interface{}{
+                "user_id": userID.(string),
+                "key_id":  keyID,
+            })
+        }
+    }()
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "API key deleted successfully",
 	})
+}
+
+// HandleDeleteAccount deletes all application data for the authenticated user
+func (h *UserHandler) HandleDeleteAccount(c *gin.Context) {
+    userID, exists := c.Get("userID")
+    if !exists {
+        c.Error(errors.ErrUnauthorized)
+        return
+    }
+
+    // Delete Supabase auth user first
+    if err := deleteSupabaseAuthUser(c.Request.Context(), userID.(string)); err != nil {
+        logger.FromGinContext(c).LogError(err, "Failed to delete Supabase auth user", map[string]interface{}{
+            "user_id": userID.(string),
+        })
+        c.Error(errors.NewAPIError("AUTH_DELETE_FAILED", "Failed to delete authentication profile", http.StatusInternalServerError))
+        return
+    }
+
+    // Then delete all app data
+    if err := h.db.DeleteUserData(c.Request.Context(), userID.(string)); err != nil {
+        logger.FromGinContext(c).LogError(err, "Failed to delete user data", map[string]interface{}{
+            "user_id": userID.(string),
+        })
+        c.Error(errors.NewAPIError("ACCOUNT_DELETE_FAILED", "Failed to delete account data", http.StatusInternalServerError))
+        return
+    }
+
+    logger.FromGinContext(c).Info().Str("user_id", userID.(string)).Msg("User account and auth deleted")
+    c.JSON(http.StatusOK, gin.H{
+        "success": true,
+        "message": "Account deleted",
+    })
+}
+
+// deleteSupabaseAuthUser removes the user from Supabase auth via admin API
+func deleteSupabaseAuthUser(ctx context.Context, userID string) error {
+    baseURL := os.Getenv("SUPABASE_URL")
+    serviceKey := os.Getenv("SUPABASE_SERVICE_KEY")
+    if baseURL == "" || serviceKey == "" {
+        return fmt.Errorf("supabase admin not configured")
+    }
+    baseURL = strings.TrimRight(baseURL, "/")
+    // Force hard delete unless you want soft-deletion visibility retained
+    url := fmt.Sprintf("%s/auth/v1/admin/users/%s?should_soft_delete=false", baseURL, userID)
+
+    req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+    if err != nil {
+        return fmt.Errorf("build request: %w", err)
+    }
+    req.Header.Set("Authorization", "Bearer "+serviceKey)
+    req.Header.Set("apikey", serviceKey)
+
+    client := &http.Client{Timeout: 10 * time.Second}
+    res, err := client.Do(req)
+    if err != nil {
+        return fmt.Errorf("admin delete call failed: %w", err)
+    }
+    defer res.Body.Close()
+    if res.StatusCode >= 300 {
+        body, _ := io.ReadAll(io.LimitReader(res.Body, 2048))
+        return fmt.Errorf("admin delete failed: status=%d body=%s", res.StatusCode, string(body))
+    }
+    return nil
 }

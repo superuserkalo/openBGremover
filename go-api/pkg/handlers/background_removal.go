@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/services"

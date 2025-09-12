@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/superuserkalo/OpenBGRemover/go-api/auth"
 	"github.com/superuserkalo/OpenBGRemover/go-api/database"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
 )
 
 // AuthMiddleware handles authentication for protected endpoints
 func AuthMiddleware(authService *auth.AuthService, db *database.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
+    return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.Error(errors.ErrUnauthorized)
@@ -53,22 +53,28 @@ func AuthMiddleware(authService *auth.AuthService, db *database.DB) gin.HandlerF
 			logger.FromGinContext(c).LogAuth(userID, "jwt", true, "")
 		}
 
-		// Get user profile
-		profile, err := db.GetProfile(c.Request.Context(), userID)
-		if err != nil {
-			c.Error(errors.NewAPIError("USER_NOT_FOUND", "User profile not found", http.StatusUnauthorized))
-			c.Abort()
-			return
-		}
+        // Get user profile (optional for account deletion)
+        profile, err := db.GetProfile(c.Request.Context(), userID)
+        if err != nil {
+            // Allow delete-account endpoint to proceed without a profile row
+            if c.Request.Method == http.MethodDelete && c.Request.URL.Path == "/api/v1/account" {
+                c.Set("userID", userID)
+                c.Next()
+                return
+            }
+            c.Error(errors.NewAPIError("USER_NOT_FOUND", "User profile not found", http.StatusUnauthorized))
+            c.Abort()
+            return
+        }
 
-		// Store user info in context
-		c.Set("userID", userID)
-		c.Set("profile", profile)
-		if apiKeyID != nil {
-			c.Set("apiKeyID", apiKeyID)
-		}
-		
-		c.Next()
+        // Store user info in context
+        c.Set("userID", userID)
+        c.Set("profile", profile)
+        if apiKeyID != nil {
+            c.Set("apiKeyID", apiKeyID)
+        }
+
+        c.Next()
 	}
 }
 

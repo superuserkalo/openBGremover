@@ -79,7 +79,7 @@ export default function HomePage() {
 
             {/* Desktop Auth Buttons */}
             <div className="hidden lg:flex items-center space-x-3">
-              <Link href="https://ko-fi.com/openbgremover" target="_blank">
+              <Link href="https://ko-fi.com/tsarkalo" target="_blank">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -157,7 +157,7 @@ export default function HomePage() {
                     Get Started
                   </Button>
                 </Link>
-                <Link href="https://ko-fi.com/openbgremover" target="_blank" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="https://ko-fi.com/tsarkalo" target="_blank" onClick={() => setMobileMenuOpen(false)}>
                   <Button
                     variant="ghost"
                     size="sm"

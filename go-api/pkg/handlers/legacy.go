@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/services"
 )
@@ -49,8 +49,8 @@ func (h *LegacyHandler) HandleLegacyUpload(c *gin.Context) {
 
 	// Validate file size
 	if header.Size > h.config.Server.MaxFileSize {
-		c.Error(errors.NewAPIError("FILE_TOO_LARGE", 
-			fmt.Sprintf("File too large (max %dMB)", h.config.Server.MaxFileSize/(1<<20)), 
+		c.Error(errors.NewAPIError("FILE_TOO_LARGE",
+			fmt.Sprintf("File too large (max %dMB)", h.config.Server.MaxFileSize/(1<<20)),
 			http.StatusBadRequest))
 		return
 	}

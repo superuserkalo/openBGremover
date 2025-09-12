@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
+    "github.com/superuserkalo/OpenBGRemover/go-api/errors"
 )
 
 // ErrorHandler handles API errors and returns proper JSON responses

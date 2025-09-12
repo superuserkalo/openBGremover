@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/errors"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
-	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/validation"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/config"
+    "github.com/superuserkalo/OpenBGRemover/go-api/errors"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
+    "github.com/superuserkalo/OpenBGRemover/go-api/pkg/validation"
 )
 
 // BackgroundRemovalService handles background removal operations

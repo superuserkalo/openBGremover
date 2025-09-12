@@ -83,11 +83,11 @@ def test_remove_background():
     start_time = time.time()
 
     # IMPORTANT: Replace with a valid API Key generated from your frontend or database
-    API_KEY = "YOUR_GENERATED_API_KEY_HERE" 
+    API_KEY = "bg_live_sk_986949e097b65e3e0c05037295ede93746f337701a0a8f57f98ec76eed9bc984"
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}" 
+        "Authorization": f"Bearer {API_KEY}"
     }
 
     try:

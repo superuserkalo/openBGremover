@@ -17,6 +17,7 @@ CLAUDE.md
 schema.md
 plan_1.md
 supabase_migrations/
+beam-worker/test.py
 
 # Security and build artifacts
 *.key
@@ -40,4 +41,7 @@ go-api/api
 go-api/.md/
 go-api/info.md
 supabase-migrations/
-
+go-api/CLAUDE.md
+go-api/.main.go
+go-api/info.md
+go-api/test.py

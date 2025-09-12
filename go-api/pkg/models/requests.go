@@ -73,13 +73,14 @@ type APIKey struct {
 
 // StatsResponse represents user statistics
 type StatsResponse struct {
-	Success           bool   `json:"success"`
-	ImagesProcessed   int    `json:"images_processed"`
-	ImagesThisMonth   int    `json:"images_this_month"`
-	FreeCredits       int    `json:"free_credits_remaining"`
-	BulkCredits       int    `json:"bulk_credits_remaining"`
-	BillingModel      string `json:"billing_model"`
-	Error             string `json:"error,omitempty"`
+    Success           bool   `json:"success"`
+    APICallsTotal     int    `json:"api_calls_total"`
+    ImagesProcessed   int    `json:"images_processed"`
+    ImagesThisMonth   int    `json:"images_this_month"`
+    FreeCredits       int    `json:"free_credits_remaining"`
+    BulkCredits       int    `json:"bulk_credits_remaining"`
+    BillingModel      string `json:"billing_model"`
+    Error             string `json:"error,omitempty"`
 }
 
 // ActivityResponse represents user activity
