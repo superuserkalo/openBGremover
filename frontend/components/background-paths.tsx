@@ -1,10 +1,9 @@
 "use client"
 
-import { motion, useReducedMotion } from "framer-motion"
+import { motion, MotionConfig } from "framer-motion"
 import { useMemo } from "react"
 
 function FloatingPaths({ position }: { position: number }) {
-  const prefersReducedMotion = useReducedMotion()
   const total = 36
 
   const paths = useMemo(() => {
@@ -25,34 +24,23 @@ function FloatingPaths({ position }: { position: number }) {
 
   return (
     <div className="absolute inset-0 pointer-events-none">
+      <MotionConfig reducedMotion="never">
       <svg className="w-full h-full text-slate-950 dark:text-white" viewBox="0 0 696 316" fill="none">
         <title>Background Paths</title>
         {paths.map((p) => (
-          prefersReducedMotion ? (
-            <path
-              key={p.id}
-              d={p.d}
-              stroke="currentColor"
-              strokeWidth={p.width}
-              strokeOpacity={p.opacity}
-            />
-          ) : (
-            <motion.path
-              key={p.id}
-              d={p.d}
-              stroke="currentColor"
-              strokeWidth={p.width}
-              strokeOpacity={p.opacity}
-              initial={{ pathLength: 0.3, opacity: 0.5 }}
-              animate={{
-                pathLength: [0.3, 1, 0.3],
-                opacity: [0.3, 0.6, 0.3],
-              }}
-              transition={{ duration: p.duration, repeat: Infinity, ease: "linear" }}
-            />
-          )
+          <motion.path
+            key={p.id}
+            d={p.d}
+            stroke="currentColor"
+            strokeWidth={p.width}
+            strokeOpacity={p.opacity}
+            initial={{ pathLength: 0.3, opacity: 0.5 }}
+            animate={{ pathLength: [0.3, 1, 0.3], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: p.duration, repeat: Infinity, ease: "linear" }}
+          />
         ))}
       </svg>
+      </MotionConfig>
     </div>
   )
 }
