@@ -33,15 +33,17 @@ type Profile struct {
 
 // APIKey represents an API key from the api_keys table
 type APIKey struct {
-	ID         int64      `json:"id"`
-	UserID     string     `json:"user_id"`
-	KeyName    string     `json:"key_name"`
-	HashedKey  string     `json:"hashed_key"`
-	KeyPrefix  string     `json:"key_prefix"`
-	LastUsedAt *time.Time `json:"last_used_at"`
-	IsActive   bool       `json:"is_active"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+    ID         int64      `json:"id"`
+    UserID     string     `json:"user_id"`
+    KeyName    string     `json:"key_name"`
+    HashedKey  string     `json:"hashed_key"`
+    KeyPrefix  string     `json:"key_prefix"`
+    LastUsedAt *time.Time `json:"last_used_at"`
+    IsActive   bool       `json:"is_active"`
+    IsService  bool       `json:"is_service"`
+    Scopes     []string   `json:"scopes"`
+    CreatedAt  time.Time  `json:"created_at"`
+    UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 // UsageLog represents a usage log entry from the usage_logs table
@@ -231,24 +233,29 @@ func (db *DB) DecrementCredits(ctx context.Context, userID string) (string, erro
 func (db *DB) GetAPIKeyByHash(ctx context.Context, hashedKey string) (*APIKey, error) {
 	query := `
 		SELECT id, user_id, key_name, hashed_key, key_prefix, last_used_at,
-		       is_active, created_at, updated_at
+		       is_active, COALESCE(is_service, false) as is_service,
+		       COALESCE(scopes, '{}'::text[]) as scopes,
+		       created_at, updated_at
 		FROM api_keys
 		WHERE hashed_key = $1 AND is_active = true`
 
-	var apiKey APIKey
-	var lastUsedAt sql.NullTime
+    var apiKey APIKey
+    var lastUsedAt sql.NullTime
+    var userIDNS sql.NullString
 
-	err := db.pool.QueryRow(ctx, query, hashedKey).Scan(
-		&apiKey.ID,
-		&apiKey.UserID,
-		&apiKey.KeyName,
-		&apiKey.HashedKey,
-		&apiKey.KeyPrefix,
-		&lastUsedAt,
-		&apiKey.IsActive,
-		&apiKey.CreatedAt,
-		&apiKey.UpdatedAt,
-	)
+    err := db.pool.QueryRow(ctx, query, hashedKey).Scan(
+        &apiKey.ID,
+        &userIDNS,
+        &apiKey.KeyName,
+        &apiKey.HashedKey,
+        &apiKey.KeyPrefix,
+        &lastUsedAt,
+        &apiKey.IsActive,
+        &apiKey.IsService,
+        &apiKey.Scopes,
+        &apiKey.CreatedAt,
+        &apiKey.UpdatedAt,
+    )
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -257,9 +264,14 @@ func (db *DB) GetAPIKeyByHash(ctx context.Context, hashedKey string) (*APIKey, e
 		return nil, fmt.Errorf("failed to get API key: %w", err)
 	}
 
-	if lastUsedAt.Valid {
-		apiKey.LastUsedAt = &lastUsedAt.Time
-	}
+    if lastUsedAt.Valid {
+        apiKey.LastUsedAt = &lastUsedAt.Time
+    }
+    if userIDNS.Valid {
+        apiKey.UserID = userIDNS.String
+    } else {
+        apiKey.UserID = ""
+    }
 
 	return &apiKey, nil
 }

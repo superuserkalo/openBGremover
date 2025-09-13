@@ -13,18 +13,56 @@ export function BackgroundRemovalDemo() {
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
-    if (file) {
-      const imageUrl = URL.createObjectURL(file)
-      setOriginalImage(imageUrl)
-      setProcessedImage(null)
+    if (!file) return
 
-      setIsProcessing(true)
+    const blobUrl = URL.createObjectURL(file)
+    setOriginalImage(blobUrl)
+    setProcessedImage(null)
+    setIsProcessing(true)
 
-      // Simulate processing
-      setTimeout(() => {
-        setProcessedImage("/placeholder.svg?height=400&width=400")
+    try {
+      // Convert to base64 data URL
+      const toBase64 = (f: File) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = reject
+          reader.readAsDataURL(f)
+        })
+
+      const imageData = await toBase64(file)
+      const resp = await fetch("/api/trial/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_data: imageData, quality: "auto", format: "png" }),
+      })
+
+      if (!resp.ok) {
+        // Show simple failure state
+        setProcessedImage(null)
         setIsProcessing(false)
-      }, 2000)
+        return
+      }
+
+      const ct = resp.headers.get("content-type") || ""
+      if (ct.startsWith("image/")) {
+        const blob = await resp.blob()
+        const url = URL.createObjectURL(blob)
+        setProcessedImage(url)
+      } else {
+        const json = await resp.json().catch(() => null as any)
+        const result = json?.result_image || json?.ResultImage || json?.image || null
+        if (typeof result === "string" && result.length > 0) {
+          const isDataURL = result.startsWith("data:image/")
+          setProcessedImage(isDataURL ? result : `data:image/png;base64,${result}`)
+        } else {
+          setProcessedImage(null)
+        }
+      }
+    } catch (_) {
+      setProcessedImage(null)
+    } finally {
+      setIsProcessing(false)
     }
   }, [])
 
@@ -89,11 +127,7 @@ export function BackgroundRemovalDemo() {
                     </div>
                   </div>
                 ) : processedImage ? (
-                  <img
-                    src={processedImage || "/placeholder.svg"}
-                    alt="Processed"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={processedImage || "/placeholder.svg"} alt="Processed" className="w-full h-full object-contain bg-[conic-gradient(at_50%_50%,_rgba(255,255,255,0.05),_rgba(0,0,0,0.05)_25%,_rgba(255,255,255,0.05)_50%,_rgba(0,0,0,0.05)_75%,_rgba(255,255,255,0.05))]" />
                 ) : null}
               </div>
               {processedImage && !isProcessing && (

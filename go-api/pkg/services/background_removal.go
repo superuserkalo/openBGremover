@@ -13,6 +13,7 @@ import (
     "github.com/superuserkalo/OpenBGRemover/go-api/errors"
     "github.com/superuserkalo/OpenBGRemover/go-api/pkg/models"
     "github.com/superuserkalo/OpenBGRemover/go-api/pkg/validation"
+    "strings"
 )
 
 // BackgroundRemovalService handles background removal operations
@@ -48,14 +49,22 @@ func (s *BackgroundRemovalService) ProcessImage(ctx context.Context, req *models
 	// Set defaults
 	s.setDefaults(req)
 
-	// Build Beam request
-	beamReq := &models.BeamRequest{
-		Image:      req.ImageData,
-		Quality:    req.Quality,
-		Format:     req.Format,
-		ReturnMask: req.ReturnMask,
-		Resize:     req.ResizeOptions,
-		Debug:      s.config.IsDevelopment(),
+    // Normalize image data: strip data URL prefix if present
+    imageData := req.ImageData
+    if strings.HasPrefix(imageData, "data:") {
+        if parts := strings.SplitN(imageData, ",", 2); len(parts) == 2 {
+            imageData = parts[1]
+        }
+    }
+
+    // Build Beam request
+    beamReq := &models.BeamRequest{
+        Image:      imageData,
+        Quality:    req.Quality,
+        Format:     req.Format,
+        ReturnMask: req.ReturnMask,
+        Resize:     req.ResizeOptions,
+        Debug:      s.config.IsDevelopment(),
 	}
 
 	// Call Beam API
