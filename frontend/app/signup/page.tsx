@@ -93,17 +93,17 @@ export default function SignupPage() {
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
               <Mail className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-white">Check your email</h2>
-            <p className="text-neutral-400 mb-6 leading-relaxed">
+            <h2 className="text-2xl font-bold mb-4 text-white tracking-[-0.01em] leading-[1.12]">Check your email</h2>
+            <p className="text-neutral-400 mb-6 leading-[1.65] tracking-[0.01em]">
               We've sent you a confirmation link at <span className="text-white font-medium">{email}</span>
             </p>
-            <p className="text-sm text-neutral-500 mb-6">
+            <p className="text-sm text-neutral-500 mb-6 tracking-[0.02em]">
               Click the link in the email to complete your account setup and get started.
             </p>
             <Link href="/login">
               <Button
                 variant="outline"
-                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer"
+                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer tracking-[0.02em]"
               >
                 Back to login
               </Button>
@@ -123,12 +123,9 @@ export default function SignupPage() {
             <ArrowLeft className="w-4 h-4" />
             <span>Back to home</span>
           </Link>
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/25"></div>
-            <span className="text-2xl font-bold text-white">openBGremover</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Create your account</h1>
-          <p className="text-neutral-400">Start removing backgrounds today</p>
+          
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Create your account</h1>
+          <p className="text-neutral-400 tracking-[0.01em]">Start removing backgrounds today</p>
         </div>
 
         <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
@@ -137,7 +134,7 @@ export default function SignupPage() {
             <Button
               onClick={handleGithubSignup}
               disabled={isGithubLoading}
-              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer"
+              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer tracking-[0.02em]"
             >
               {isGithubLoading ? (
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
@@ -150,7 +147,7 @@ export default function SignupPage() {
             <div className="relative mb-6">
               <Separator className="bg-neutral-700" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-neutral-900 px-3 text-sm text-neutral-400">or</span>
+                <span className="bg-neutral-900 px-3 text-sm text-neutral-400 tracking-[0.02em]">or</span>
               </div>
             </div>
 
@@ -219,13 +216,13 @@ export default function SignupPage() {
                 </div>
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -236,7 +233,7 @@ export default function SignupPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-neutral-400">
+              <p className="text-neutral-400 tracking-[0.01em]">
                 Already have an account?{" "}
                 <Link href="/login" className="text-orange-400 hover:text-orange-300 font-medium cursor-pointer">
                   Sign in
@@ -244,7 +241,7 @@ export default function SignupPage() {
               </p>
             </div>
 
-            <div className="mt-6 text-xs text-neutral-500 text-center">
+            <div className="mt-6 text-xs text-neutral-500 text-center tracking-[0.02em]">
               By creating an account, you agree to our{" "}
               <Link href="/terms" className="text-orange-400 hover:text-orange-300 cursor-pointer">
                 Terms of Service

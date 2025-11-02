@@ -47,14 +47,14 @@ export default function ForgotPasswordPage() {
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
               <Mail className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-white">Check your email</h2>
-            <p className="text-neutral-400 mb-6 leading-relaxed">
+            <h2 className="text-2xl font-bold mb-4 text-white tracking-[-0.01em] leading-[1.12]">Check your email</h2>
+            <p className="text-neutral-400 mb-6 leading-[1.65] tracking-[0.01em]">
               We've sent a password reset link to <span className="text-white font-medium">{email}</span>
             </p>
             <Link href="/login">
               <Button
                 variant="outline"
-                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer"
+                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer tracking-[0.02em]"
               >
                 Back to login
               </Button>
@@ -73,12 +73,9 @@ export default function ForgotPasswordPage() {
             <ArrowLeft className="w-4 h-4" />
             <span>Back to login</span>
           </Link>
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/25"></div>
-            <span className="text-2xl font-bold text-white">openBGremover</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Reset your password</h1>
-          <p className="text-neutral-400">Enter your email to receive a reset link</p>
+          
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Reset your password</h1>
+          <p className="text-neutral-400 tracking-[0.01em]">Enter your email to receive a reset link</p>
         </div>
 
         <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
@@ -99,13 +96,13 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (

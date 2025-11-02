@@ -84,7 +84,7 @@ const AlertDialogAction = React.forwardRef<
   <AlertDialogPrimitive.Action
     ref={ref}
     className={cn(
-      "inline-flex h-9 items-center justify-center rounded-md bg-gradient-to-r from-orange-500 to-amber-500 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:from-orange-600 hover:to-amber-600 focus:outline-none",
+      "inline-flex h-9 items-center justify-center rounded-md bg-gradient-to-r from-orange-500 to-amber-500 px-4 text-sm font-medium text-white transition-colors hover:from-orange-600 hover:to-amber-600 focus:outline-none",
       className
     )}
     {...props}
@@ -121,4 +121,3 @@ export {
   AlertDialogAction,
   AlertDialogCancel,
 }
-

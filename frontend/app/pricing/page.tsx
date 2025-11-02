@@ -70,8 +70,8 @@ export default function PricingPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
         <div className="text-center mb-12 sm:mb-16 max-w-3xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 text-white">Pricing that makes sense</h1>
-          <p className="text-lg sm:text-xl text-neutral-400 leading-relaxed mb-6 sm:mb-8 px-4 sm:px-0">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 text-white tracking-[-0.01em] leading-[1.12]">Pricing that makes sense</h1>
+          <p className="text-lg sm:text-xl text-neutral-400 leading-[1.65] tracking-[0.005em] mb-6 sm:mb-8 px-4 sm:px-0">
             No subscriptions. No expiring packages. No bullshit. Just pay for what you process.
           </p>
 
@@ -87,24 +87,24 @@ export default function PricingPage() {
         <div className="max-w-lg mx-auto mb-12 sm:mb-16">
           <Card className="bg-neutral-900 border-neutral-800 text-center shadow-xl">
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl font-semibold text-white">{payAsYouGo.name}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl font-semibold text-white tracking-[-0.005em] leading-[1.15]">{payAsYouGo.name}</CardTitle>
               <div className="mt-3 sm:mt-4">
                 <span className="text-3xl sm:text-4xl font-bold text-white">{payAsYouGo.price}</span>
-                <span className="text-neutral-400 ml-2 text-sm sm:text-base">{payAsYouGo.unit}</span>
+                <span className="text-neutral-400 ml-2 text-sm sm:text-base tracking-[0.01em]">{payAsYouGo.unit}</span>
               </div>
-              <p className="text-neutral-400 mt-2 text-sm sm:text-base">{payAsYouGo.description}</p>
+              <p className="text-neutral-400 mt-2 text-sm sm:text-base leading-[1.6] tracking-[0.01em]">{payAsYouGo.description}</p>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               <ul className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                 {payAsYouGo.features.map((feature) => (
-                  <li key={feature} className="flex items-center text-neutral-300 text-sm sm:text-base">
+                  <li key={feature} className="flex items-center text-neutral-300 text-sm sm:text-base leading-[1.6] tracking-[0.01em]">
                     <Check className="w-4 sm:w-5 h-4 sm:h-5 text-orange-400 mr-3 flex-shrink-0" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <Link href="/signup" className="cursor-pointer">
-                <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 text-sm sm:text-base cursor-pointer">
+                <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm sm:text-base cursor-pointer tracking-[0.02em] transition-colors duration-200">
                   Start processing
                 </Button>
               </Link>
@@ -114,8 +114,8 @@ export default function PricingPage() {
 
         {/* Bulk packages - Mobile Optimized */}
         <div className="text-center mb-8 sm:mb-12">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-white">Or buy in bulk and save</h2>
-          <p className="text-base sm:text-lg text-neutral-400 leading-relaxed px-4 sm:px-0">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-white tracking-[-0.01em] leading-[1.12]">Or buy in bulk and save</h2>
+          <p className="text-base sm:text-lg text-neutral-400 leading-[1.65] tracking-[0.005em] px-4 sm:px-0">
             Pre-purchase image processing at discounted rates. Process whenever you want - packages never expire.
           </p>
         </div>
@@ -134,12 +134,12 @@ export default function PricingPage() {
                 </div>
               )}
               <CardHeader className="text-center p-4 sm:p-6">
-                <CardTitle className="text-lg sm:text-xl font-semibold text-white">{pkg.name}</CardTitle>
+                <CardTitle className="text-lg sm:text-xl font-semibold text-white tracking-[-0.005em] leading-[1.15]">{pkg.name}</CardTitle>
                 <div className="mt-3 sm:mt-4">
                   <div className="text-2xl sm:text-3xl font-bold text-white">{pkg.price}</div>
                   <div className="text-neutral-400 mt-1">
-                    <div className="text-sm sm:text-base">{pkg.images}</div>
-                    <div className="text-xs sm:text-sm">{pkg.pricePerImage}</div>
+                    <div className="text-sm sm:text-base tracking-[0.01em] leading-[1.6]">{pkg.images}</div>
+                    <div className="text-xs sm:text-sm tracking-[0.02em] leading-[1.6]">{pkg.pricePerImage}</div>
                   </div>
                   <div className="inline-block mt-2 px-2 sm:px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-400 text-xs sm:text-sm">
                     {pkg.savings}
@@ -148,28 +148,28 @@ export default function PricingPage() {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <ul className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 text-neutral-300">
-                  <li className="flex items-center text-sm sm:text-base">
+                  <li className="flex items-center text-sm sm:text-base leading-[1.6] tracking-[0.01em]">
                     <Check className="w-4 sm:w-5 h-4 sm:h-5 text-orange-400 mr-3 flex-shrink-0" />
                     <span>Images never expire</span>
                   </li>
-                  <li className="flex items-center text-sm sm:text-base">
+                  <li className="flex items-center text-sm sm:text-base leading-[1.6] tracking-[0.01em]">
                     <Check className="w-4 sm:w-5 h-4 sm:h-5 text-orange-400 mr-3 flex-shrink-0" />
                     <span>Same API, better price</span>
                   </li>
-                  <li className="flex items-center text-sm sm:text-base">
+                  <li className="flex items-center text-sm sm:text-base leading-[1.6] tracking-[0.01em]">
                     <Check className="w-4 sm:w-5 h-4 sm:h-5 text-orange-400 mr-3 flex-shrink-0" />
                     <span>Priority processing</span>
                   </li>
-                  <li className="flex items-center text-sm sm:text-base">
+                  <li className="flex items-center text-sm sm:text-base leading-[1.6] tracking-[0.01em]">
                     <Check className="w-4 sm:w-5 h-4 sm:h-5 text-orange-400 mr-3 flex-shrink-0" />
                     <span>Email support</span>
                   </li>
                 </ul>
                 <Link href="/signup" className="cursor-pointer">
                   <Button
-                    className={`w-full text-sm sm:text-base cursor-pointer ${
+                    className={`w-full text-sm sm:text-base cursor-pointer tracking-[0.02em] ${
                       pkg.popular
-                        ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200"
                         : "bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700"
                     }`}
                   >
@@ -182,11 +182,11 @@ export default function PricingPage() {
         </div>
 
         <div className="text-center">
-          <p className="text-neutral-400 mb-4 text-sm sm:text-base">Need more than 100,000 images?</p>
+          <p className="text-neutral-400 mb-4 text-sm sm:text-base tracking-[0.01em]">Need more than 100,000 images?</p>
           <Link href="/contact" className="cursor-pointer">
             <Button
               variant="outline"
-              className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white text-sm sm:text-base cursor-pointer"
+              className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white text-sm sm:text-base cursor-pointer tracking-[0.02em]"
             >
               Contact us for volume pricing
             </Button>

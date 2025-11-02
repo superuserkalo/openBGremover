@@ -5,7 +5,7 @@ import (
     "net/http"
     "time"
     "encoding/base64"
-
+    "strings"
 	"github.com/gin-gonic/gin"
 	"github.com/superuserkalo/OpenBGRemover/go-api/errors"
 	"github.com/superuserkalo/OpenBGRemover/go-api/pkg/logger"
@@ -80,11 +80,6 @@ func (h *BackgroundRemovalHandler) HandleRemoveBackground(c *gin.Context) {
         return
     }
 
-    // Force PNG output for service (trial) requests
-    if isService {
-        apiReq.Format = "png"
-    }
-
     // Process image
     response, err := h.bgService.ProcessImage(c.Request.Context(), &apiReq)
     if err != nil {
@@ -112,6 +107,11 @@ func (h *BackgroundRemovalHandler) HandleRemoveBackground(c *gin.Context) {
 	}
 
     if isService {
+        // If upstream failed, return JSON error (so caller can fallback to PNG, etc.)
+        if response == nil || !response.Success {
+            c.JSON(http.StatusBadRequest, response)
+            return
+        }
         // For trial/service requests, return binary image to minimize payload overhead
         imgB64 := response.ResultImage
         if imgB64 == "" && response.MaskImage != "" {
@@ -122,8 +122,17 @@ func (h *BackgroundRemovalHandler) HandleRemoveBackground(c *gin.Context) {
             c.Error(errors.NewAPIError("DECODE_ERROR", "Failed to decode processed image", http.StatusInternalServerError))
             return
         }
-        // Always return PNG for trial path
-        c.Data(http.StatusOK, "image/png", data)
+        // Return according to requested format (default to PNG)
+        ct := "image/png"
+        switch strings.ToLower(apiReq.Format) {
+        case "webp":
+            ct = "image/webp"
+        case "jpg", "jpeg":
+            ct = "image/jpeg"
+        case "gif":
+            ct = "image/gif"
+        }
+        c.Data(http.StatusOK, ct, data)
         return
     }
 

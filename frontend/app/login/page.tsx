@@ -76,12 +76,9 @@ export default function LoginPage() {
             <ArrowLeft className="w-4 h-4" />
             <span>Back to home</span>
           </Link>
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/25"></div>
-            <span className="text-2xl font-bold text-white">openBGremover</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
-          <p className="text-neutral-400">Sign in to your account</p>
+          
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Welcome back</h1>
+          <p className="text-neutral-400 tracking-[0.01em]">Sign in to your account</p>
         </div>
 
         <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
@@ -90,7 +87,7 @@ export default function LoginPage() {
             <Button
               onClick={handleGithubLogin}
               disabled={isGithubLoading}
-              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer"
+              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer tracking-[0.02em]"
             >
               {isGithubLoading ? (
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
@@ -103,7 +100,7 @@ export default function LoginPage() {
             <div className="relative mb-6">
               <Separator className="bg-neutral-700" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-neutral-900 px-3 text-sm text-neutral-400">or</span>
+                <span className="bg-neutral-900 px-3 text-sm text-neutral-400 tracking-[0.02em]">or</span>
               </div>
             </div>
 
@@ -148,13 +145,13 @@ export default function LoginPage() {
                 </div>
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -165,13 +162,13 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <Link href="/forgot-password" className="text-sm text-orange-400 hover:text-orange-300 cursor-pointer">
+              <Link href="/forgot-password" className="text-sm text-orange-400 hover:text-orange-300 cursor-pointer tracking-[0.02em]">
                 Forgot your password?
               </Link>
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-neutral-400">
+              <p className="text-neutral-400 tracking-[0.01em]">
                 Don't have an account?{" "}
                 <Link href="/signup" className="text-orange-400 hover:text-orange-300 font-medium cursor-pointer">
                   Sign up

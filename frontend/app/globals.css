@@ -282,6 +282,15 @@
   border-color: var(--border);
 }
 
+html { scroll-behavior: smooth; }
+
+/* Two-section scroll snap on body (desktop), no overscroll chaining */
+@media (min-width: 1024px) {
+  html {
+    overscroll-behavior-y: none;
+  }
+}
+
 html {
   background: var(--background);
 }
