@@ -1,0 +1,30 @@
+{
+  "name": "openbgremover",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @openbg/web",
+    "dev:api": "npm run dev -w @openbg/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "oxlint apps packages",
+    "lint:fix": "oxlint apps packages --fix",
+    "test": "vitest run",
+    "test:e2e": "node --env-file=.env.deployment apps/api/scripts/e2e.ts",
+    "check": "npm run typecheck && npm run lint && npm test",
+    "build:web": "npm run build -w @openbg/web",
+    "build:api": "npm run build -w @openbg/api"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.9",
+    "@oxlint/plugins": "1.88.0",
+    "@types/node": "26.6.5",
+    "@types/pg": "8.23.1",
+    "oxlint": "1.88.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.4"
+  }
+}

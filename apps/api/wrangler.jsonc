@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openbg-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-13",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:3000,https://openbgremover.dev,https://www.openbgremover.dev",
+    "SUPABASE_URL": "https://bxwzgybcivctgasyhwur.supabase.co",
+    "BEAM_ENDPOINT_URL": "https://bg-removal-f6823e6-v8.app.beam.cloud"
+  },
+  "hyperdrive": [
+    {
+      "binding": "DATABASE",
+      "id": "8bf0fba337c646be9c1523ecc201f1bb",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/postgres"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "TRIAL_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
+  ],
+  "secrets": {
+    "required": [
+      "SUPABASE_PUBLISHABLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "BEAM_API_KEY"
+    ]
+  },
+  "account_id": "ead8e94d4354734f3ac631e4ab2472ae",
+  "workers_dev": true,
+  "preview_urls": false
+}

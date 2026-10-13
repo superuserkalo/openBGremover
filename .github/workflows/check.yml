@@ -1,0 +1,29 @@
+name: Check
+on: [push, pull_request]
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26.7.0
+          cache: npm
+      - run: npm ci
+      - run: npm run types -w @openbg/api
+      - run: npm run check
+      - run: npm run build:api
+      - run: npm run build:web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: public-build-placeholder
+          NEXT_PUBLIC_API_URL: http://localhost:8787
+  image-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r workers/background-removal/requirements-test.txt
+      - run: python -m unittest discover -s workers/background-removal -p test_imaging.py -v

@@ -1,0 +1,77 @@
+"""Beam deployment and BiRefNet inference. Image handling lives in imaging.py."""
+import time
+from pathlib import Path
+from beam import endpoint, Image, env, Volume
+
+MODEL_ID = "ZhengPeng7/BiRefNet_HR-matting"
+MODEL_REVISION = "5d6b6f8adcb5b417c871b1d84ceaae9871355b7f"
+
+if env.is_remote():
+    import torch
+    from transformers import AutoModelForImageSegmentation
+    from torchvision import transforms
+    from imaging import process_image
+
+
+def load_model():
+    model = AutoModelForImageSegmentation.from_pretrained(
+        MODEL_ID, revision=MODEL_REVISION, trust_remote_code=True, cache_dir="./model_cache"
+    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.set_float32_matmul_precision("highest")
+    model.to(device).eval()
+    if device.type == "cuda":
+        model.half()
+    transform = transforms.Compose([
+        transforms.Resize((2048, 2048), antialias=True),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    return model, transform, device
+
+
+@endpoint(
+    name="bg-removal",
+    cpu=2,
+    memory="8Gi",
+    gpu="RTX4090",
+    image=Image(python_version="python3.12").add_python_packages(
+        Path(__file__).with_name("requirements-gpu.txt").read_text().splitlines()
+    ),
+    volumes=[Volume(name="model_cache", mount_path="./model_cache")],
+    on_start=load_model,
+    keep_warm_seconds=300,
+    max_pending_tasks=100,
+    timeout=180,
+)
+def remove_background(context, **inputs):
+    started = time.monotonic()
+    model, transform, device = context.on_start_value
+
+    def infer_mask(image):
+        tensor = transform(image).unsqueeze(0).to(device)
+        if device.type == "cuda":
+            tensor = tensor.half()
+        with torch.inference_mode():
+            prediction = model(tensor)[-1].sigmoid().float().cpu()[0].squeeze()
+        # Preserve soft alpha; thresholding destroys hair and translucent edges.
+        return transforms.ToPILImage()(prediction)
+
+    try:
+        result = process_image(
+            inputs["image"], infer_mask, inputs.get("format", "png"),
+            inputs.get("resize"), inputs.get("return_mask", False),
+        )
+        result["metadata"].update({
+            "processing_time_ms": round((time.monotonic() - started) * 1000),
+            "model": MODEL_ID, "model_revision": MODEL_REVISION, "device": str(device),
+            # Historical quality names remain aliases of this model's matting output.
+            "quality_used": inputs.get("quality", "auto"),
+        })
+        return result
+    except (KeyError, ValueError, OSError) as error:
+        return {"success": False, "error": str(error), "code": "INVALID_IMAGE"}
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": "Image processing failed", "code": "PROCESSING_ERROR"}
