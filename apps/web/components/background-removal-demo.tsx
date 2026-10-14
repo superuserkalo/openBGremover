@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
+import { Schema } from "effect"
+import { ApiFailure } from "@openbg/contracts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,6 +15,7 @@ export function BackgroundRemovalDemo() {
   const [originalImage, setOriginalImage] = useState<string | null>(null)
   const [processedImage, setProcessedImage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [slider, setSlider] = useState(50)
   const [dragging, setDragging] = useState(false)
@@ -21,6 +24,7 @@ export function BackgroundRemovalDemo() {
   const frameRef = useRef<HTMLDivElement | null>(null)
   const [boxSize, setBoxSize] = useState<{ w: number; h: number } | null>(null)
   const [downloadName, setDownloadName] = useState("")
+  const [extension, setExtension] = useState("png")
   const clamp = (v: number, min = 0, max = 100) => Math.max(min, Math.min(max, v))
 
   const startDragAtClientX = (clientX: number) => {
@@ -107,53 +111,16 @@ export function BackgroundRemovalDemo() {
     const base = file.name.replace(/\.[^.]+$/, "")
     setDownloadName(base.slice(0, 64))
     setProcessedImage(null)
+    setError(null)
     setIsProcessing(true)
     setProgress(4)
     let tick: ReturnType<typeof setInterval> | undefined
 
     try {
-      // Send as multipart to avoid base64 bloat client->server
-      // Downscale on client to keep under worker megapixel limits and shrink upload size
-      const loadImage = (f: File) =>
-        new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image()
-          img.onload = () => { URL.revokeObjectURL(img.src); resolve(img) }
-
-          img.onerror = reject
-          img.src = URL.createObjectURL(f)
-        })
-
-      const imgEl = await loadImage(file)
-      const maxDim = 1400
-      let targetW = imgEl.naturalWidth
-      let targetH = imgEl.naturalHeight
-      const scale = Math.min(1, maxDim / Math.max(targetW, targetH))
-      targetW = Math.round(targetW * scale)
-      targetH = Math.round(targetH * scale)
-
-      const canvas = document.createElement("canvas")
-      canvas.width = targetW
-      canvas.height = targetH
-      const ctx = canvas.getContext("2d")
-
-      if (!ctx) throw new Error("Canvas unsupported")
-      ctx.drawImage(imgEl, 0, 0, targetW, targetH)
-
-      // Preserve existing transparency when preparing the upload.
-      const downscaledBlob: Blob = await new Promise((resolve, reject) =>
-        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not prepare image")), "image/png")
-      )
-
-      // Use downscaled original preview for accurate split
-      const downscaledUrl = URL.createObjectURL(downscaledBlob)
-      setOriginalImage(downscaledUrl)
-
+      // Preserve source pixels and metadata; the worker handles model preprocessing.
       const form = new FormData()
-      form.append("file", downscaledBlob, (file.name || "image") + ".png")
+      form.append("file", file)
       form.append("format", "png")
-      form.append("width", String(targetW))
-      form.append("height", String(targetH))
-      form.append("keep_aspect", "true")
       form.append("quality", "auto")
       tick = setInterval(() => {
         // Ease towards 92% while waiting
@@ -162,11 +129,12 @@ export function BackgroundRemovalDemo() {
       const resp = await fetch("/api/trial/run", { method: "POST", body: form })
 
       if (!resp.ok) {
-        // Show simple failure state
-        setProcessedImage(null)
-        setIsProcessing(false)
+        if (resp.status === 413) throw new Error("This image exceeds the file-size limit. Choose a smaller file.")
 
-        return
+        const failure = await resp.json().then(Schema.decodeUnknownSync(ApiFailure))
+          .catch(() => ({ error: "Could not process this image. Please try again." }))
+
+        throw new Error(failure.error)
       }
 
       const ct = resp.headers.get("content-type") || ""
@@ -174,13 +142,15 @@ export function BackgroundRemovalDemo() {
       if (ct.startsWith("image/")) {
         const blob = await resp.blob()
         const url = URL.createObjectURL(blob)
+        setExtension(ct.startsWith("image/gif") ? "gif" : "png")
         setProcessedImage(url)
         setProgress(100)
       } else {
         throw new Error("The server did not return an image")
       }
-    } catch {
+    } catch (cause) {
       setProcessedImage(null)
+      setError(cause instanceof Error ? cause.message : "Could not process this image. Please try again.")
     } finally {
       clearInterval(tick)
       setIsProcessing(false)
@@ -194,41 +164,25 @@ export function BackgroundRemovalDemo() {
       "image/*": [".jpeg", ".jpg", ".png", ".webp"],
     },
     multiple: false,
+    maxSize: 10 * 1024 * 1024,
+    onDropRejected: () => setError("Choose a JPEG, PNG, or WebP image up to 10 MB."),
   })
 
   const handleDownload = () => {
     if (!processedImage) return
     const sanitize = (s: string) => s.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-_]/g, "") || "image"
-    const name = sanitize(downloadName || "result") + "-removed.png"
-    // If preview is webp, convert to PNG via canvas before download
-    const img = new Image()
-    img.crossOrigin = "anonymous"
-    img.onload = () => {
-      const canvas = document.createElement("canvas")
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext("2d")
-
-      if (!ctx) return
-      ctx.drawImage(img, 0, 0)
-      canvas.toBlob((blob) => {
-        if (!blob) return
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = name
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        URL.revokeObjectURL(url)
-      }, "image/png")
-    }
-
-    img.src = processedImage
+    const name = sanitize(downloadName || "result") + "-removed." + extension
+    const anchor = document.createElement("a")
+    anchor.href = processedImage
+    anchor.download = name
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
   }
 
   return (
     <div className="max-w-6xl mx-auto">
+      {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}
       {!originalImage ? (
         <Card className="border-2 border-dashed border-neutral-700 hover:border-orange-500/50 transition-all duration-300 bg-neutral-900 shadow-xl hover:shadow-2xl hover:scale-105 group">
           <CardContent className="p-6 sm:p-8 lg:p-12">
@@ -299,7 +253,7 @@ export function BackgroundRemovalDemo() {
                   <div className="text-center max-w-xs w-full">
                     <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto mb-3" />
                     <p className="text-sm text-neutral-300">Preparing preview…</p>
-                    <p className="text-xs text-neutral-500 mt-1">First run may take ~20–30s, then it’s instant.</p>
+                    <p className="text-xs text-neutral-500 mt-1">Larger images and the first request after a pause can take longer.</p>
                     <div className="mt-4">
                       <Progress value={progress} />
                     </div>
@@ -309,7 +263,7 @@ export function BackgroundRemovalDemo() {
                 <>
                   {/* Base: processed image covers full container */}
                   <img
-                    src={processedImage || "/placeholder.svg"}
+                    src={processedImage || originalImage || "/placeholder.svg"}
                     alt="Processed"
                     className="absolute inset-0 w-full h-full object-contain"
                     style={{ zIndex: 1 }}
@@ -339,6 +293,12 @@ export function BackgroundRemovalDemo() {
               )}
             </div>
             </div>
+
+            {error && !isProcessing && (
+              <Button variant="outline" className="mt-4" onClick={() => { setOriginalImage(null); setError(null) }}>
+                Choose another image
+              </Button>
+            )}
 
             {processedImage && !isProcessing && (
               <div className="mt-4 flex flex-col sm:flex-row gap-3">

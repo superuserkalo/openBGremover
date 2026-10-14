@@ -20,6 +20,32 @@ def soft_mask(image):
 
 
 class ImagePipelineTests(unittest.TestCase):
+    def test_binary_transport_preserves_pixels_alpha_and_dimensions(self):
+        image = Image.new("RGBA", (2048, 1536), (18, 92, 203, 191))
+        source = encoded(image)
+        for format in ["png", "webp", "gif", "jpg"]:
+            with self.subTest(format=format):
+                legacy = process_image(source, soft_mask, format, return_mask=True)
+                binary = process_image(source, soft_mask, format, return_mask=True, binary=True)
+                old_image = decoded(legacy["image"])
+                new_image = Image.open(io.BytesIO(binary["image"]))
+                self.assertEqual(new_image.mode, old_image.mode)
+                self.assertEqual(new_image.tobytes(), old_image.tobytes())
+                self.assertEqual(binary["mask"], base64.b64decode(legacy["mask"]))
+                self.assertEqual(Image.open(io.BytesIO(binary["image"])).size, image.size)
+        self.assertEqual(Image.open(io.BytesIO(binary["mask"])).getextrema(), (95, 95))
+
+    def test_exif_rotation_and_source_pixels_are_preserved(self):
+        image = Image.new("RGB", (7, 3), (19, 87, 211))
+        exif = Image.Exif()
+        exif[274] = 6
+        source = encoded(image, "JPEG", exif=exif)
+        expected = decoded(source).getpixel((0, 0))
+        result = process_image(source, soft_mask, binary=True)
+        output = Image.open(io.BytesIO(result["image"]))
+        self.assertEqual(output.size, (3, 7))
+        self.assertEqual(output.getpixel((0, 0)), (*expected, 128))
+
     def test_preserves_soft_alpha_and_existing_transparency(self):
         image = Image.new("RGBA", (2, 1), (255, 0, 0, 255))
         image.putpixel((0, 0), (255, 0, 0, 0))

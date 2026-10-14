@@ -4,7 +4,7 @@ import { bearerToken, generateKey, hashKey, type createAuth } from "./auth";
 import { readText } from "./body";
 import type { Database } from "./database";
 import { ApiError, attempt, errorResponse } from "./errors";
-import { decodeImageRequest, removeBackground, type Identity, type Processor } from "./media";
+import { imageBase64, imageBytes, readImageRequest, removeBackground, type Identity, type ProcessedImage, type Processor } from "./media";
 
 export interface Dependencies {
   auth: ReturnType<typeof createAuth>;
@@ -54,13 +54,27 @@ async function identify(request: Request, db: Database, sessionUserId: string | 
   return { kind: "user", userId: key.user_id, keyId: key.id, source: "api" };
 }
 
-function imageResponse(result: RemoveBackgroundResponse, format: string): Response {
-  const binary = atob(result.result_image);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const actualFormat = result.metadata.format ?? format;
+function processingResponse(result: ProcessedImage, binary: boolean, format: string): Response {
+  const metadata = result.kind === "binary" ? result.metadata : result.value.metadata;
+  const actualFormat = metadata.format ?? format;
   const extension = actualFormat === "jpg" ? "jpeg" : actualFormat;
+  let response: Response;
 
-  return new Response(bytes, { headers: { "Content-Type": `image/${extension}` } });
+  if (binary) {
+    const bytes = result.kind === "binary" ? result.image : imageBytes(result.value.result_image);
+
+    response = new Response(bytes, { headers: { "Content-Type": `image/${extension}`, "X-Image-Metadata": JSON.stringify(metadata) } });
+  } else {
+    const value: RemoveBackgroundResponse = result.kind === "json" ? result.value : {
+      success: true, result_image: imageBase64(result.image), metadata, processing_time_ms: result.milliseconds,
+    };
+
+    response = Response.json(value);
+  }
+
+  response.headers.set("Server-Timing", `beam_headers;dur=${result.timings.headers.toFixed(1)}, beam_body;dur=${result.timings.body.toFixed(1)}, beam_validate;dur=${result.timings.validation.toFixed(1)}`);
+
+  return response;
 }
 
 export function createHandler(deps: Dependencies) {
@@ -90,7 +104,8 @@ export function createHandler(deps: Dependencies) {
       const identity = await identify(request, db, sessionUserId);
 
       if (routeKey === "POST /api/v1/remove-background") {
-        const input = decodeImageRequest(await readText(request));
+        const input = await readImageRequest(request);
+        const binary = identity.kind === "trial" || (!input.return_mask && request.headers.get("accept")?.split(",").some((value) => value.trim() === "image/*") === true);
 
         if (identity.kind === "trial" && !(await deps.allowTrial())) {
           throw new ApiError({ code: "RATE_LIMITED", message: "The demo is busy. Please try again in a minute", status: 429 });
@@ -98,7 +113,7 @@ export function createHandler(deps: Dependencies) {
 
         return Effect.runPromise(removeBackground(input, identity, db, deps.process).pipe(Effect.match({
           onFailure: errorResponse,
-          onSuccess: (result) => identity.kind === "trial" ? imageResponse(result, input.format ?? "png") : Response.json(result),
+          onSuccess: (result) => processingResponse(result, binary, input.format ?? "png"),
         })));
       }
 
@@ -171,12 +186,13 @@ export function createHandler(deps: Dependencies) {
 
     response.headers.set("Cache-Control", "no-store");
     response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Vary", "Origin");
+    response.headers.set("Vary", "Origin, Accept");
 
     if (origin && deps.allowedOrigins.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
       response.headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       response.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Usage-Context");
+      response.headers.set("Access-Control-Expose-Headers", "Server-Timing, X-Image-Metadata");
     }
 
     return response;

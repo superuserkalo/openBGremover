@@ -48,7 +48,9 @@ async function readBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
   return bytes;
 }
 
-async function decodeRequest(request: Request): Promise<RemoveBackgroundRequest> {
+interface ForwardedRequest { body: Uint8Array<ArrayBuffer> | string; contentType: string }
+
+async function decodeRequest(request: Request): Promise<ForwardedRequest> {
   const bytes = await readBody(request);
   const contentType = request.headers.get("content-type") ?? "";
 
@@ -60,19 +62,26 @@ async function decodeRequest(request: Request): Promise<RemoveBackgroundRequest>
 
     if (file.size > 10 * 1024 * 1024) throw new TrialError("File exceeds 10 MB", 413);
 
-    return Schema.decodeUnknownSync(RemoveBackgroundRequest)({
-      image_data: Buffer.from(await file.arrayBuffer()).toString("base64"),
-      format: form.get("format") ?? "png",
-      quality: form.get("quality") ?? "auto",
-      resize_options: { max_width: 1400, max_height: 1400 },
-    });
+    const format = form.get("format") ?? "png";
+    const quality = form.get("quality") ?? "auto";
+    const image = new Uint8Array(await file.arrayBuffer());
+
+    if (format === "png" && quality === "auto") return { body: image, contentType: "application/octet-stream" };
+
+    const input = Schema.decodeUnknownSync(RemoveBackgroundRequest)({ image_data: Buffer.from(image).toString("base64"), format, quality });
+
+    return { body: JSON.stringify(input), contentType: "application/json" };
   }
 
   if (contentType.startsWith("image/") || contentType.startsWith("application/octet-stream")) {
-    return { image_data: Buffer.from(bytes).toString("base64"), format: "png", resize_options: { max_width: 1400, max_height: 1400 } };
+    if (bytes.byteLength > 10 * 1024 * 1024) throw new TrialError("File exceeds 10 MB", 413);
+
+    return { body: bytes, contentType: "application/octet-stream" };
   }
 
-  return Schema.decodeUnknownSync(RemoveBackgroundRequest)(JSON.parse(new TextDecoder().decode(bytes)));
+  const input = Schema.decodeUnknownSync(RemoveBackgroundRequest)(JSON.parse(new TextDecoder().decode(bytes)));
+
+  return { body: JSON.stringify(input), contentType: "application/json" };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -81,7 +90,7 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!base || !key) return Response.json({ error: "The demo is not configured yet" }, { status: 503 });
 
-  let input: RemoveBackgroundRequest;
+  let input: ForwardedRequest;
 
   try {
     input = await decodeRequest(request);
@@ -92,14 +101,19 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const response = await fetch(`${base.replace(/\/$/, "")}/api/v1/remove-background`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Usage-Context": "trial" },
-      body: JSON.stringify(input), signal: AbortSignal.timeout(190_000), cache: "no-store",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": input.contentType, "X-Usage-Context": "trial", Accept: "image/*" },
+      body: input.body, signal: AbortSignal.timeout(190_000), cache: "no-store",
     });
 
     const contentType = response.headers.get("content-type") ?? "";
 
     if (response.ok && contentType.startsWith("image/")) {
-      return new Response(response.body, { headers: { "Content-Type": contentType, "Cache-Control": "no-store" } });
+      const headers = new Headers({ "Content-Type": contentType, "Cache-Control": "no-store" });
+      const timing = response.headers.get("server-timing");
+
+      if (timing) headers.set("Server-Timing", timing);
+
+      return new Response(response.body, { headers });
     }
 
     const error = Schema.decodeUnknownSync(ApiFailure)(await response.json());

@@ -67,8 +67,9 @@ latency. CI runs both sets and builds both applications.
 The live test reads the ignored `.env.deployment` file. Set `E2E_API_URL`,
 `E2E_IMAGE_PATH`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, and `DATABASE_URL`. It creates one temporary account
-without sending email, tests real inference and credit accounting, and removes
-that account afterward. Reports and image outputs go to the ignored
+without sending email, tests mask, binary, and JSON output with three successful
+inference charges plus failure refunds, and removes that account afterward.
+Reports and image outputs go to the ignored
 `artifacts/e2e` directory. Run it only against a deployment you own.
 
 ## HTTP API
@@ -77,6 +78,20 @@ Send `Authorization: Bearer <API key>` to `POST /api/v1/remove-background` with
 JSON containing `image_data` (base64). Optional fields are `format`, `quality`,
 `return_mask`, and `resize_options`. The response contains `result_image`
 (base64), `processing_time_ms`, and `metadata`.
+
+For a single image, send `Accept: image/*` to receive the encoded image directly,
+with its actual `Content-Type` and JSON metadata in `X-Image-Metadata`. Requests
+with `return_mask: true` retain the JSON image-and-mask response. Raw image
+bodies are also accepted with `Content-Type: application/octet-stream` or an
+image content type; these use PNG output, automatic quality, and original
+dimensions. Use JSON for explicit format, mask, or resize options.
+
+The demo forwards original files to this same authenticated API. The GPU can
+return binary images to avoid a base64 round trip, while legacy GPU JSON and
+public API JSON remain supported. Binary results are bounded at 12 MiB and
+complete legacy GPU JSON responses at 16 MiB. `Server-Timing` separates the
+Beam response-header wait from body transfer. See the dated
+[pipeline investigation](docs/pipeline-latency.md) for measurements and limits.
 
 ```json
 {

@@ -18,6 +18,7 @@ if env.is_remote():
     import torch
     from transformers import AutoModelForImageSegmentation
     from torchvision import transforms
+    from fastapi.responses import Response
     from imaging import process_image
     log_timing("imports_finished", duration_ms=round((time.monotonic() - imports_started) * 1000))
 
@@ -57,7 +58,7 @@ def load_warmed_model():
 
 @endpoint(
     name="bg-removal",
-    cpu=2,
+    cpu=1,
     memory="8Gi",
     gpu="RTX4090",
     image=Image(python_version="python3.12").add_python_packages(
@@ -90,9 +91,12 @@ def remove_background(context, **inputs):
         return transforms.ToPILImage()(prediction)
 
     try:
+        binary = inputs.get("response_format") == "binary" and not inputs.get("return_mask", False)
         result = process_image(
             inputs["image"], infer_mask, inputs.get("format", "png"),
             inputs.get("resize"), inputs.get("return_mask", False),
+            binary=binary,
+            record_timing=lambda stage, duration: log_timing(stage, task_id=context.task_id, duration_ms=duration),
         )
         result["metadata"].update({
             "processing_time_ms": round((time.monotonic() - started) * 1000),
@@ -100,6 +104,15 @@ def remove_background(context, **inputs):
             # Historical quality names remain aliases of this model's matting output.
             "quality_used": inputs.get("quality", "auto"),
         })
+        if binary:
+            extension = result["metadata"]["format"]
+            if extension == "jpg":
+                extension = "jpeg"
+            return Response(result["image"], media_type=f"image/{extension}", headers={
+                "X-Image-Metadata": json.dumps(result["metadata"], separators=(",", ":")),
+                "X-Task-Id": context.task_id,
+                "Cache-Control": "no-store",
+            })
         return result
     except (KeyError, ValueError, OSError) as error:
         return {"success": False, "error": str(error), "code": "INVALID_IMAGE"}

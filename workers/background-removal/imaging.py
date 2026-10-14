@@ -1,6 +1,7 @@
 """Image decoding and encoding, independent of Beam and the model runtime."""
 import base64
 import io
+import time
 from collections.abc import Callable
 
 from PIL import Image, ImageChops, ImageOps, ImageSequence
@@ -9,6 +10,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PIXELS = 25_000_000
 MAX_FRAMES = 60
 MAX_ANIMATION_PIXELS = 60_000_000
+MAX_BINARY_RESULT_BYTES = 12 * 1024 * 1024
 FORMATS = {"png", "webp", "gif", "jpg", "jpeg"}
 
 
@@ -30,20 +32,30 @@ def output_size(size: tuple[int, int], resize: dict | None) -> tuple[int, int]:
     return max(1, round(size[0] * scale)), max(1, round(size[1] * scale))
 
 
-def encode(image: Image.Image, output_format: str) -> str:
+def encode(image: Image.Image, output_format: str, fast_png: bool = False) -> bytes:
     buffer = io.BytesIO()
     if output_format in {"jpg", "jpeg"}:
         background = Image.new("RGB", image.size, "white")
         background.paste(image, mask=image.getchannel("A"))
         background.save(buffer, "JPEG", quality=95)
+    elif output_format == "png" and fast_png:
+        # Both levels are lossless. Retain level 6 when level 5 would exceed
+        # the API's binary result allowance but the original encoding might fit.
+        image.save(buffer, "PNG", compress_level=5)
+        if buffer.tell() > MAX_BINARY_RESULT_BYTES:
+            buffer.seek(0)
+            buffer.truncate()
+            image.save(buffer, "PNG", compress_level=6)
     else:
         image.save(buffer, output_format.upper())
-    return base64.b64encode(buffer.getvalue()).decode("ascii")
+    return buffer.getvalue()
 
 
 def process_image(encoded: str, infer_mask: Callable[[Image.Image], Image.Image],
                   output_format: str = "png", resize: dict | None = None,
-                  return_mask: bool = False) -> dict:
+                  return_mask: bool = False, binary: bool = False,
+                  record_timing: Callable[[str, int], None] | None = None) -> dict:
+    started = time.monotonic()
     if output_format not in FORMATS:
         raise ValueError("Unsupported output format")
     if len(encoded) > (MAX_UPLOAD_BYTES + 2) // 3 * 4:
@@ -60,36 +72,47 @@ def process_image(encoded: str, infer_mask: Callable[[Image.Image], Image.Image]
     if pixels > MAX_PIXELS or frames > MAX_FRAMES or (animated and pixels * frames > MAX_ANIMATION_PIXELS):
         raise ValueError("Image exceeds pixel or animation limits")
 
-    original_size = ImageOps.exif_transpose(image).size if not animated else image.size
+    if not animated:
+        image = ImageOps.exif_transpose(image)
+    original_size = image.size
     target = output_size(original_size, resize)
     if target[0] * target[1] > MAX_PIXELS or (animated and target[0] * target[1] * frames > MAX_ANIMATION_PIXELS):
         raise ValueError("Output exceeds pixel or animation limits")
+    if record_timing:
+        record_timing("image_decode", round((time.monotonic() - started) * 1000))
     results = []
     durations = []
     mask = None
     for frame in ImageSequence.Iterator(image):
-        rgba = (frame if animated else ImageOps.exif_transpose(frame)).convert("RGBA")
-        mask = infer_mask(rgba.convert("RGB")).convert("L").resize(rgba.size, Image.Resampling.LANCZOS)
+        rgba = frame.convert("RGBA")
+        mask = infer_mask(frame if frame.mode == "RGB" else rgba.convert("RGB")).convert("L")
+        if mask.size != rgba.size:
+            mask = mask.resize(rgba.size, Image.Resampling.LANCZOS)
         # Existing transparent pixels must never become opaque again.
         mask = ImageChops.multiply(mask, rgba.getchannel("A"))
         rgba.putalpha(mask)
-        results.append(rgba.resize(target, Image.Resampling.LANCZOS))
+        results.append(rgba if target == rgba.size else rgba.resize(target, Image.Resampling.LANCZOS))
         durations.append(frame.info.get("duration", 100))
 
+    encoding_started = time.monotonic()
     if animated:
         # Preserve the previous API's animated-input behavior: an animated GIF result.
         output_format = "gif"
         buffer = io.BytesIO()
         results[0].save(buffer, "GIF", save_all=True, append_images=results[1:],
                         duration=durations, loop=image.info.get("loop", 0), disposal=2)
-        result = base64.b64encode(buffer.getvalue()).decode("ascii")
+        result = buffer.getvalue()
     else:
-        result = encode(results[0], output_format)
+        result = encode(results[0], output_format, fast_png=binary)
 
-    response = {"success": True, "image": result, "metadata": {
+    if record_timing:
+        record_timing("image_encode", round((time.monotonic() - encoding_started) * 1000))
+
+    response = {"success": True, "image": result if binary else base64.b64encode(result).decode("ascii"), "metadata": {
         "original_size": list(original_size), "output_size": list(target),
         "format": output_format, "is_animated": animated, "frame_count": frames,
     }}
     if return_mask and not animated and mask is not None:
-        response["mask"] = encode(mask.resize(target, Image.Resampling.LANCZOS), "png")
+        mask_bytes = encode(mask if target == mask.size else mask.resize(target, Image.Resampling.LANCZOS), "png")
+        response["mask"] = mask_bytes if binary else base64.b64encode(mask_bytes).decode("ascii")
     return response

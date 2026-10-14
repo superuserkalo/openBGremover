@@ -93,6 +93,31 @@ describe("API and PostgreSQL accounting", () => {
     expect((await database.activity(USER, 10, 0)).every((item) => !item.was_successful)).toBe(true);
   });
 
+  it("allows PNG results larger than the input allowance without allowing larger uploads", async () => {
+    // Exercise the wire-size boundary; image pixels are decoded by the GPU worker.
+    const largeOutput = PNG.slice(0, 32) + "A".repeat(15 * 1024 * 1024 - 32);
+
+    gpu.mockResolvedValueOnce(Response.json({ success: true, image: largeOutput, metadata: { format: "png" } }));
+    const processed = await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })));
+
+    expect(processed.status).toBe(200);
+    expect(Schema.decodeUnknownSync(RemoveBackgroundResponse)(await processed.json()).result_image).toBe(largeOutput);
+    expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: largeOutput })))).status).toBe(400);
+    expect(gpu).toHaveBeenCalledTimes(1);
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 1, free_credits_remaining: 0, bulk_credits_remaining: 1 });
+  });
+
+  it("still bounds complete worker responses and refunds an oversized result", async () => {
+    const oversizedOutput = PNG.slice(0, 32) + "A".repeat(16 * 1024 * 1024 - 32);
+
+    gpu.mockResolvedValueOnce(Response.json({ success: true, image: oversizedOutput, metadata: { format: "png" } }));
+    const processed = await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })));
+
+    expect(processed.status).toBe(502);
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 0, free_credits_remaining: 1, bulk_credits_remaining: 1 });
+    expect((await database.activity(USER, 10, 0)).every((item) => !item.was_successful)).toBe(true);
+  });
+
   it("rejects invalid image data and resize values without spending credits", async () => {
     for (const payload of [{ image_data: "garbage" }, { image_data: PNG, format: "exe" }, { image_data: PNG, resize_options: { width: -1, height: 5 } }]) {
       expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify(payload)))).status).toBe(400);
@@ -100,6 +125,63 @@ describe("API and PostgreSQL accounting", () => {
 
     expect(gpu).not.toHaveBeenCalled();
     expect(await database.stats(USER)).toMatchObject({ free_credits_remaining: 1, api_calls_total: 0 });
+  });
+
+  it("accepts original binary uploads and returns byte-identical binary results on request", async () => {
+    const bytes = Buffer.from(PNG, "base64");
+
+    gpu.mockResolvedValueOnce(new Response(bytes, { headers: { "Content-Type": "image/png", "X-Image-Metadata": JSON.stringify({ format: "png", output_size: [1, 1] }) } }));
+
+    const input = new Request("https://api.example/api/v1/remove-background", {
+      method: "POST", headers: { Authorization: "Bearer session", "Content-Type": "image/png", Accept: "image/*" }, body: bytes,
+    });
+
+    const response = await handler(input);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/png");
+    expect(Buffer.from(await response.arrayBuffer()).equals(bytes)).toBe(true);
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 1, free_credits_remaining: 0 });
+  });
+
+  it("preserves the JSON contract when the worker returns binary, and refunds malformed binary output", async () => {
+    gpu.mockResolvedValueOnce(new Response(Buffer.from(PNG, "base64"), { headers: { "Content-Type": "image/png", "X-Image-Metadata": '{"format":"png"}' } }));
+    const response = await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })));
+
+    expect(response.status).toBe(200);
+    expect(Schema.decodeUnknownSync(RemoveBackgroundResponse)(await response.json()).result_image).toBe(PNG);
+
+    for (const headers of [{ "Content-Type": "image/png", "X-Image-Metadata": '{"format":"webp"}' }, { "Content-Type": "image/png", "X-Image-Metadata": 'invalid' }]) {
+      gpu.mockResolvedValueOnce(new Response(Buffer.from(PNG, "base64"), { headers }));
+      expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })))).status).toBe(502);
+    }
+
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 1, free_credits_remaining: 0, bulk_credits_remaining: 1 });
+  });
+
+  it("bounds binary uploads before inference and refunds oversized or interrupted binary results", async () => {
+    for (const body of [new Uint8Array(10 * 1024 * 1024 + 1), new TextEncoder().encode("invalid")]) {
+      const response = await handler(new Request("https://api.example/api/v1/remove-background", {
+        method: "POST", headers: { Authorization: "Bearer session", "Content-Type": "application/octet-stream" }, body,
+      }));
+
+      expect([400, 413]).toContain(response.status);
+    }
+
+    expect(gpu).not.toHaveBeenCalled();
+
+    const cancel = vi.fn();
+    const headers = { "Content-Type": "image/png", "X-Image-Metadata": '{"format":"png"}' };
+
+    gpu.mockResolvedValueOnce(new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(12 * 1024 * 1024 + 1)); }, cancel }), { headers }));
+    gpu.mockResolvedValueOnce(new Response(new ReadableStream({ start(controller) { controller.error(new Error("Interrupted transfer")); } }), { headers }));
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })))).status).toBe(502);
+    }
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 0, free_credits_remaining: 1, bulk_credits_remaining: 1 });
   });
 
   it("creates hashed keys, allows usage reads, and enforces ownership on deletion", async () => {

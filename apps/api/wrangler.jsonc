@@ -9,7 +9,7 @@
   "vars": {
     "ALLOWED_ORIGINS": "http://localhost:3000,https://openbgremover.dev,https://www.openbgremover.dev",
     "SUPABASE_URL": "https://bxwzgybcivctgasyhwur.supabase.co",
-    "BEAM_ENDPOINT_URL": "https://bg-removal-f6823e6-v10.app.beam.cloud"
+    "BEAM_ENDPOINT_URL": "https://bg-removal-f6823e6-v14.app.beam.cloud"
   },
   "hyperdrive": [
     {

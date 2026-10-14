@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { Client } from "pg";
 import { Schema } from "effect";
-import { ActivityResponse, CreateKeyResponse, KeysResponse, RemoveBackgroundResponse, StatsResponse } from "@openbg/contracts";
+import { ActivityResponse, CreateKeyResponse, ImageMetadata, KeysResponse, RemoveBackgroundResponse, StatsResponse } from "@openbg/contracts";
 
 function required(name: string): string {
   const value = process.env[name];
@@ -100,7 +100,7 @@ try {
 
   const initial = await stats(session);
 
-  assert.ok(initial.free_credits_remaining >= 1, "Signup trigger supplies test credits");
+  assert.ok(initial.free_credits_remaining >= 3, "Signup trigger supplies credits for all three output-path checks");
   passed("Supabase login, JWT verification, signup profile, and numeric credit balances");
 
   const createdKey = await call("/api/v1/keys", session, "POST", JSON.stringify({ name: "Deployment verification" }));
@@ -128,11 +128,41 @@ try {
   await writeFile(`${outputDirectory}/api-output.png`, Buffer.from(result.result_image, "base64"));
   await writeFile(`${outputDirectory}/api-mask.png`, Buffer.from(result.mask_image, "base64"));
 
+  const afterMask = await stats(key.api_key);
+
+  assert.equal(afterMask.free_credits_remaining, initial.free_credits_remaining - 1);
+  assert.equal(afterMask.images_processed, 1);
+  passed("Cloudflare to Hyperdrive to Beam GPU processing, PNG/mask output, and one-credit charge");
+
+  const binary = await fetch(`${api}/api/v1/remove-background`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key.api_key}`, "Content-Type": "application/octet-stream", Accept: "image/*" },
+    body: Buffer.from(image, "base64"), signal: AbortSignal.timeout(200_000),
+  });
+
+  assert.equal(binary.status, 200);
+  assert.equal(binary.headers.get("content-type"), "image/png");
+  assert.ok(binary.headers.get("server-timing")?.includes("beam_body"));
+
+  const binaryMetadata = Schema.decodeUnknownSync(ImageMetadata)(JSON.parse(binary.headers.get("x-image-metadata") ?? "null"));
+  const binaryBytes = Buffer.from(await binary.arrayBuffer());
+
+  assert.deepEqual(binaryMetadata.output_size, result.metadata.output_size);
+  await writeFile(`${outputDirectory}/api-output-binary.png`, binaryBytes);
+
+  const compatible = await call("/api/v1/remove-background", key.api_key, "POST", JSON.stringify({ image_data: image, format: "png" }));
+
+  assert.equal(compatible.status, 200);
+
+  const jsonResult = Schema.decodeUnknownSync(RemoveBackgroundResponse)(await compatible.json());
+
+  assert.deepEqual(Buffer.from(jsonResult.result_image, "base64"), binaryBytes);
+
   const afterSuccess = await stats(key.api_key);
 
-  assert.equal(afterSuccess.free_credits_remaining, initial.free_credits_remaining - 1);
-  assert.equal(afterSuccess.images_processed, 1);
-  passed("Cloudflare to Hyperdrive to Beam GPU processing, PNG/mask output, and one-credit charge");
+  assert.equal(afterSuccess.free_credits_remaining, initial.free_credits_remaining - 3);
+  assert.equal(afterSuccess.images_processed, 3);
+  passed("Original binary upload, binary result, public JSON compatibility, identical output bytes, and exactly three total charges");
 
   const malformed = await call("/api/v1/remove-background", key.api_key, "POST", JSON.stringify({ image_data: "invalid" }));
 
@@ -146,7 +176,7 @@ try {
 
   const activity = Schema.decodeUnknownSync(ActivityResponse)(await (await call("/api/v1/activity", key.api_key)).json());
 
-  assert.equal(activity.activities.filter((item) => item.was_successful).length, 1);
+  assert.equal(activity.activities.filter((item) => item.was_successful).length, 3);
   assert.equal(activity.activities.filter((item) => !item.was_successful).length, 1);
   passed("Invalid input rejection, real worker failure refund, and persisted usage activity");
 
