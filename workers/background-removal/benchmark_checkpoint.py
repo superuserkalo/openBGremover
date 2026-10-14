@@ -1,8 +1,7 @@
 """Isolated checkpoint experiments. Stop these deployments after benchmarking."""
 from pathlib import Path
-import time
 from beam import endpoint, Image, QueueDepthAutoscaler, Volume
-from app import load_model, log_timing, remove_background
+from app import load_model, load_warmed_model, remove_background
 
 
 @endpoint(
@@ -41,21 +40,6 @@ def checkpoint_benchmark(context, **inputs):
 )
 def control_benchmark(context, **inputs):
     return remove_background.local(context, **inputs)
-
-
-def load_warmed_model():
-    import torch
-
-    model, transform, device = load_model()
-    started = time.monotonic()
-    sample = torch.zeros((1, 3, 2048, 2048), device=device, dtype=next(model.parameters()).dtype)
-    with torch.inference_mode():
-        prediction = model(sample)[-1].sigmoid().float().cpu()
-    # Keep initialized kernels, but exclude unused activation allocations from the snapshot.
-    del prediction, sample
-    torch.cuda.empty_cache()
-    log_timing("model_warmup_finished", duration_ms=round((time.monotonic() - started) * 1000))
-    return model, transform, device
 
 
 @endpoint(

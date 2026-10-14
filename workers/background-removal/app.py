@@ -42,6 +42,19 @@ def load_model():
     return model, transform, device
 
 
+def load_warmed_model():
+    model, transform, device = load_model()
+    started = time.monotonic()
+    sample = torch.zeros((1, 3, 2048, 2048), device=device, dtype=next(model.parameters()).dtype)
+    with torch.inference_mode():
+        prediction = model(sample)[-1].sigmoid().float().cpu()
+    # Keep initialized kernels, but exclude unused activation allocations from the snapshot.
+    del prediction, sample
+    torch.cuda.empty_cache()
+    log_timing("model_warmup_finished", duration_ms=round((time.monotonic() - started) * 1000))
+    return model, transform, device
+
+
 @endpoint(
     name="bg-removal",
     cpu=2,
@@ -51,7 +64,8 @@ def load_model():
         Path(__file__).with_name("requirements-gpu.txt").read_text().splitlines()
     ),
     volumes=[Volume(name="model_cache", mount_path="./model_cache")],
-    on_start=load_model,
+    on_start=load_warmed_model,
+    checkpoint_enabled=True,
     keep_warm_seconds=60,
     max_pending_tasks=100,
     timeout=180,

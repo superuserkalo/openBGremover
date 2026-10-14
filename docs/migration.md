@@ -22,6 +22,10 @@ connection. Secrets are configured separately and are not committed.
    their respective slots. Do not expose the secret/service-role key in web env vars.
 4. Deploy the Beam endpoint from `workers/background-removal/app.py` using your
    Beam account. The model is public; a Hugging Face access token is not required.
+   Production uses checkpoint restore after model loading and one dummy inference,
+   with `keep_warm_seconds=60` and scale-to-zero. Prepare and verify the new
+   snapshot before updating either API to a new Beam URL; see the
+   [rollout procedure and verification](checkpoint-production-rollout.md).
    The pinned remote model code is fetched on first load. Run representative
    photographs, hair, translucent objects, products, and animated inputs before
    treating quality, memory use, or latency as accepted.

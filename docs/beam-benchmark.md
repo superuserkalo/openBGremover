@@ -1,6 +1,6 @@
 # Beam latency and cost measurements
 
-Historical measurements from overnight on 13 and 14 October 2026, Europe/Vienna. This experiment used BiRefNet v8 and a 300-second warm window. The later [controlled checkpoint comparison](beam-checkpoint-comparison.md) supersedes the deployment state and recommendation below; production now uses v9 with a 60-second window.
+Historical measurements from overnight on 13 and 14 October 2026, Europe/Vienna. This experiment used BiRefNet v8 and a 300-second warm window. The later [controlled checkpoint comparison](beam-checkpoint-comparison.md) supersedes the deployment state and recommendation below; the subsequent [production rollout](checkpoint-production-rollout.md) enabled checkpoints and inference warmup with a 60-second window.
 
 ## Results
 

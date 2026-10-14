@@ -1,6 +1,6 @@
 # Beam: 60-second warm window and controlled cold-start comparison
 
-Measured 14 October 2026. Production now uses `bg-removal` v9 with `keep_warm_seconds=60`. Both the Cloudflare API and the legacy Cloud Run API point to it. The replaced v8 deployment was stopped. Production checkpointing remains disabled; checkpoint results below came from temporary deployments.
+Measured 14 October 2026. This comparison used temporary checkpoint deployments while production v9 had checkpointing disabled and a 60-second warm window. The warmed-checkpoint configuration was subsequently promoted to production v10; see the [production rollout and verification](checkpoint-production-rollout.md). The measurements below describe the original comparison.
 
 The strongest tested configuration was a checkpoint captured after one dummy inference: **6.20 seconds median from cold**, compared with **24.16 seconds without checkpoints**. Its best result was **5.02 seconds**. This is close to five seconds, but does not establish reliable five-second responses.
 
@@ -53,13 +53,13 @@ Beam documents checkpoint support as runtime/workload-dependent and recommends c
 
 ## Production and cost
 
-Production deployment: `3d8265d0-85de-4cc2-8b72-b346202956a3`, stub `a3d4f0a7-459a-4bf0-ad5f-696e356371fe`, URL `https://bg-removal-f6823e6-v9.app.beam.cloud`. Cloudflare version `6fd23e30-f889-40f5-ba13-dbcaf22245d1`; Cloud Run revision `openbgremover-00038-7p8`. No always-running GPU minimum was introduced. The three temporary Beam deployments were stopped, the temporary Cloudflare API was deleted, and all four temporary benchmark identities (including the preliminary setup failure) were confirmed absent. Only production v9 remains active.
+Production deployment at the time of this comparison: `3d8265d0-85de-4cc2-8b72-b346202956a3`, stub `a3d4f0a7-459a-4bf0-ad5f-696e356371fe`, URL `https://bg-removal-f6823e6-v9.app.beam.cloud`. Cloudflare version `6fd23e30-f889-40f5-ba13-dbcaf22245d1`; Cloud Run revision `openbgremover-00038-7p8`. No always-running GPU minimum was introduced. The three temporary Beam deployments were stopped, the temporary Cloudflare API was deleted, and all four temporary benchmark identities (including the preliminary setup failure) were confirmed absent. At the end of this comparison, only production v9 remained active; v10 supersedes it in the later rollout.
 
 At published rates, this allocation is `$0.000192 + 2 × $0.000105 + 8 × $0.0000055 = $0.000446/second`. A configured 60-second idle tail models **$0.02676 per isolated burst**, versus **$0.13380** for 300 seconds: an **80% reduction in that idle component**, not an 80% reduction in every invoice. Startup, processing and actual shutdown timing add to it. [Beam pricing](https://www.beam.cloud/pricing), [keep-warm behavior](https://docs.beam.cloud/v2/endpoint/keep-warm).
 
 The production API end-to-end test passed login, API-key creation/revocation, real GPU processing, credit charging, failed-request refunds and account cleanup. Separate website and legacy Cloud Run image requests also returned the expected PNG. Local validation passed strict TypeScript, Oxlint, 13 API tests, five image-pipeline tests and `git diff --check`.
 
-Checkpointing is the next supported latency improvement from this experiment. A warmed checkpoint is a promising candidate for roughly 5–7-second cold responses on this workload, subject to further sampling. Neither an asynchronous job API nor a GUI warmup would remove the measured startup work for an unsolicited API request. This task deployed the requested 60-second policy and kept checkpoint experiments separate from production.
+Checkpointing was the next supported latency improvement from this experiment and was subsequently promoted in the [production rollout](checkpoint-production-rollout.md). A warmed checkpoint is a promising candidate for roughly 5–7-second cold responses on this workload, subject to further sampling. Neither an asynchronous job API nor a GUI warmup would remove the measured startup work for an unsolicited API request. This task deployed the requested 60-second policy and kept checkpoint experiments separate from production.
 
 ## Reproduction and evidence
 
