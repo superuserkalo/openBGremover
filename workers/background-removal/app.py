@@ -2,7 +2,7 @@
 import json
 import time
 from pathlib import Path
-from beam import endpoint, Image, env, Volume
+from beam import endpoint, Image, env, Volume, Output
 
 MODEL_ID = "ZhengPeng7/BiRefNet_HR-matting"
 MODEL_REVISION = "5d6b6f8adcb5b417c871b1d84ceaae9871355b7f"
@@ -91,7 +91,7 @@ def remove_background(context, **inputs):
         return transforms.ToPILImage()(prediction)
 
     try:
-        binary = inputs.get("response_format") == "binary" and not inputs.get("return_mask", False)
+        binary = inputs.get("response_format") in {"binary", "file"} and not inputs.get("return_mask", False)
         result = process_image(
             inputs["image"], infer_mask, inputs.get("format", "png"),
             inputs.get("resize"), inputs.get("return_mask", False),
@@ -104,15 +104,35 @@ def remove_background(context, **inputs):
             # Historical quality names remain aliases of this model's matting output.
             "quality_used": inputs.get("quality", "auto"),
         })
-        if binary:
-            extension = result["metadata"]["format"]
+        if binary or inputs.get("response_format") == "file":
+            extension = result["metadata"]["format"] if binary else "json"
             if extension == "jpg":
                 extension = "jpeg"
-            return Response(result["image"], media_type=f"image/{extension}", headers={
+            media_type = f"image/{extension}" if binary else "application/json"
+            content = result["image"] if binary else json.dumps(result, separators=(",", ":")).encode()
+            maximum = 12 * 1024 * 1024 if binary else 16 * 1024 * 1024
+            if len(content) > maximum:
+                raise ValueError("Output exceeds the size limit")
+            headers = {
                 "X-Image-Metadata": json.dumps(result["metadata"], separators=(",", ":")),
                 "X-Task-Id": context.task_id,
                 "Cache-Control": "no-store",
-            })
+            }
+            if inputs.get("response_format") == "file":
+                import tempfile
+                saved_at = time.monotonic()
+                # Persist already encoded bytes; re-encoding can change pixels or animation.
+                with tempfile.NamedTemporaryFile(suffix="." + extension) as file:
+                    file.write(content)
+                    file.flush()
+                    output = Output(path=file.name).save()
+                    url = output.public_url(expires=120)
+                log_timing("file_saved", task_id=context.task_id,
+                           duration_ms=round((time.monotonic() - saved_at) * 1000))
+                delivery = {"url": url, "content_type": media_type, "metadata": result["metadata"]}
+                return Response(json.dumps(delivery, separators=(",", ":")),
+                                media_type="application/vnd.openbg.file+json", headers=headers)
+            return Response(content, media_type=media_type, headers=headers)
         return result
     except (KeyError, ValueError, OSError) as error:
         return {"success": False, "error": str(error), "code": "INVALID_IMAGE"}

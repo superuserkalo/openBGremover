@@ -17,6 +17,9 @@ connection. Secrets are configured separately and are not committed.
    `apps/api/wrangler.jsonc`. See the
    [Supabase connection guide](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/supabase/).
 3. Set `SUPABASE_URL`, `BEAM_ENDPOINT_URL`, and `ALLOWED_ORIGINS` in that config.
+   Set `BEAM_OUTPUT_URL_PREFIX` to the HTTPS workspace prefix used by Beam's
+   managed file output. The API downloads expiring links internally; see the
+   [delivery design and verification](beam-delivery-stall.md).
    Configure Worker secrets `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and
    `BEAM_API_KEY`. Publishable/anon and secret/service-role keys are supported in
    their respective slots. Do not expose the secret/service-role key in web env vars.

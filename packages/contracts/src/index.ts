@@ -35,6 +35,13 @@ export const ImageMetadata = Schema.Struct({
   model_revision: Schema.optionalKey(Schema.String),
 });
 
+/** Internal GPU delivery envelope; the signed URL never reaches API clients. */
+export const WorkerFileDelivery = Schema.Struct({
+  url: Schema.String,
+  content_type: Schema.Literals(["image/png", "image/jpeg", "image/webp", "image/gif", "application/json"]),
+  metadata: ImageMetadata,
+});
+
 export const RemoveBackgroundResponse = Schema.Struct({
   success: Schema.Literal(true),
   result_image: Schema.String,

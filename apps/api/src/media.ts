@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { ImageMetadata, RemoveBackgroundRequest, type RemoveBackgroundResponse } from "@openbg/contracts";
+import { ImageMetadata, RemoveBackgroundRequest, WorkerFileDelivery, type RemoveBackgroundResponse } from "@openbg/contracts";
 import { ApiError, attempt } from "./errors";
 import { readBytes, readText } from "./body";
 import type { Database } from "./database";
@@ -15,7 +15,7 @@ const WorkerSuccess = Schema.Struct({
   metadata: ImageMetadata,
 });
 
-export interface MediaConfig { endpoint: string; apiKey: string }
+export interface MediaConfig { endpoint: string; apiKey: string; outputUrlPrefix: string }
 
 const MAX_WORKER_RESPONSE_BYTES = 16 * 1024 * 1024;
 
@@ -111,6 +111,7 @@ export function decodeImageRequest(text: string): RemoveBackgroundRequest {
 export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fetch) {
   return async (request: RemoveBackgroundRequest): Promise<ProcessedImage> => {
     const started = performance.now();
+    const signal = AbortSignal.timeout(180_000);
     let response: Response;
 
     try {
@@ -120,9 +121,10 @@ export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fet
         body: JSON.stringify({
           image: request.image_data, format: request.format ?? "png", quality: request.quality ?? "auto",
           return_mask: request.return_mask ?? false, resize: request.resize_options,
-          response_format: request.return_mask ? "json" : "binary",
+          response_format: "file",
         }),
-        signal: AbortSignal.timeout(180_000),
+        signal,
+        redirect: "manual",
       });
     } catch {
       throw new ApiError({ code: "PROCESSING_UNAVAILABLE", message: "The image worker did not respond", status: 502 });
@@ -134,13 +136,36 @@ export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fet
     }
 
     const headersAt = performance.now();
-    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
+    let contentType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
+
+    const metadataHeader = response.headers.get("x-image-metadata");
+    let fileMetadata: typeof ImageMetadata.Type | undefined;
 
     try {
+      if (contentType === "application/vnd.openbg.file+json") {
+        const delivery = Schema.decodeUnknownSync(WorkerFileDelivery)(JSON.parse(await readText(response, 64 * 1024)));
+        const url = new URL(delivery.url);
+        const prefix = new URL(config.outputUrlPrefix);
+
+        if (url.protocol !== "https:" || url.origin !== prefix.origin || !prefix.pathname.endsWith("/") || !url.pathname.startsWith(prefix.pathname) || url.username || url.password || url.hash) throw new Error("Invalid file destination");
+
+        // The signed file URL is internal. Never forward the Beam credential or follow another redirect.
+        response = await fetcher(url, { signal, redirect: "manual" });
+
+        if (!response.ok) {
+          await response.body?.cancel();
+          throw new Error("Image download failed");
+        }
+
+        contentType = delivery.content_type;
+        fileMetadata = delivery.metadata;
+      }
+
       if (contentType.startsWith("image/")) {
+        const metadata = fileMetadata ?? Schema.decodeUnknownSync(ImageMetadata)(JSON.parse(metadataHeader ?? "null"));
+
         const image = await readBytes(response, MAX_BINARY_RESULT_BYTES);
         const bodyAt = performance.now();
-        const metadata = Schema.decodeUnknownSync(ImageMetadata)(JSON.parse(response.headers.get("x-image-metadata") ?? "null"));
         const actual = imageFormat(String.fromCharCode(...image.subarray(0, 32)));
         const format = metadata.format === "jpg" ? "jpeg" : metadata.format;
 

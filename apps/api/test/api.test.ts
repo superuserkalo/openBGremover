@@ -37,7 +37,7 @@ const handler = createHandler({
     return USER;
   }, deleteUser },
   withDatabase: (use) => use(database),
-  process: createProcessor({ endpoint: "https://gpu.example/run", apiKey: "test" }, gpu),
+  process: createProcessor({ endpoint: "https://gpu.example/run", apiKey: "test", outputUrlPrefix: "https://files.example/workspace/" }, gpu),
   allowedOrigins: ["https://web.example"],
   allowTrial: async () => true,
 });
@@ -182,6 +182,61 @@ describe("API and PostgreSQL accounting", () => {
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(await database.stats(USER)).toMatchObject({ images_processed: 0, free_credits_remaining: 1, bulk_credits_remaining: 1 });
+  });
+
+  it("downloads a completed image once without forwarding GPU credentials or exposing its URL", async () => {
+    const bytes = Buffer.from(PNG, "base64");
+
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({
+        url: "https://files.example/workspace/output.png?signature=private", content_type: "image/png",
+        metadata: { format: "png", output_size: [1, 1] },
+      }, { headers: { "Content-Type": "application/vnd.openbg.file+json" } }))
+      .mockResolvedValueOnce(new Response(bytes, { headers: { "Content-Type": "application/octet-stream" } }));
+
+    const process = createProcessor({ endpoint: "https://gpu.example/run", apiKey: "private", outputUrlPrefix: "https://files.example/workspace/" }, fetcher);
+    const result = await process({ image_data: PNG });
+
+    expect(result.kind).toBe("binary");
+
+    if (result.kind === "binary") expect(Buffer.from(result.image).equals(bytes)).toBe(true);
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ method: "POST", redirect: "manual" });
+    expect(fetcher.mock.calls[1]?.[1]).toMatchObject({ redirect: "manual" });
+    expect(fetcher.mock.calls[1]?.[1]?.headers).toBeUndefined();
+    expect(JSON.stringify(result)).not.toContain("signature");
+  });
+
+  it("preserves image-and-mask JSON through file delivery and charges once", async () => {
+    gpu.mockResolvedValueOnce(Response.json({ url: "https://files.example/workspace/output.json", content_type: "application/json", metadata: { format: "png" } }, { headers: { "Content-Type": "application/vnd.openbg.file+json" } }));
+    gpu.mockResolvedValueOnce(Response.json({ success: true, image: PNG, mask: PNG, metadata: { format: "png" } }));
+    const response = await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG, return_mask: true })));
+
+    expect(response.status).toBe(200);
+    expect(Schema.decodeUnknownSync(RemoveBackgroundResponse)(await response.json())).toMatchObject({ result_image: PNG, mask_image: PNG });
+    expect(gpu).toHaveBeenCalledTimes(2);
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 1, free_credits_remaining: 0, bulk_credits_remaining: 1 });
+  });
+
+  it("rejects unsafe file destinations and refunds failed downloads without repeating inference", async () => {
+    for (const location of ["http://files.example/workspace/a.png", "https://files.example.evil/workspace/a.png", "https://files.example/other/a.png", "https://user:secret@files.example/workspace/a.png"]) {
+      gpu.mockResolvedValueOnce(Response.json({ url: location, content_type: "image/png", metadata: { format: "png" } }, { headers: { "Content-Type": "application/vnd.openbg.file+json" } }));
+      const count = gpu.mock.calls.length;
+      expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })))).status).toBe(502);
+      expect(gpu.mock.calls.length).toBe(count + 1);
+    }
+
+    for (const download of [new Response(null, { status: 403 }), new Response(null, { status: 302, headers: { Location: "https://elsewhere.example" } }), new Response(new Uint8Array(12 * 1024 * 1024 + 1))]) {
+      gpu.mockResolvedValueOnce(Response.json({ url: "https://files.example/workspace/a.png", content_type: "image/png", metadata: { format: "png" } }, { headers: { "Content-Type": "application/vnd.openbg.file+json" } }));
+      gpu.mockResolvedValueOnce(download);
+      const count = gpu.mock.calls.length;
+      expect((await handler(request("/api/v1/remove-background", "POST", "session", JSON.stringify({ image_data: PNG })))).status).toBe(502);
+      expect(gpu.mock.calls.length).toBe(count + 2);
+    }
+
+    expect(await database.stats(USER)).toMatchObject({ images_processed: 0, free_credits_remaining: 1, bulk_credits_remaining: 1 });
+    expect((await database.activity(USER, 20, 0)).every((item) => !item.was_successful)).toBe(true);
   });
 
   it("creates hashed keys, allows usage reads, and enforces ownership on deletion", async () => {
