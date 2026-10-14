@@ -287,7 +287,8 @@ the warmed checkpoint, 60-second idle window and scale-to-zero are retained.
 The live production E2E passed authentication, API-key scopes, image/mask, raw
 binary and default JSON output, exactly three successful credit charges, failure
 refunds, usage recording, revocation and verified temporary-account deletion.
-The old v11 deployment remains available until route verification completes.
+V11 was stopped after route verification; its deployment record and checkpoint
+remain available for rollback.
 
 The website release uses the two-file package above through the existing Vercel
 Git integration. The concurrent redesign remains uncommitted. Earlier v12, v13
@@ -299,3 +300,45 @@ Pillow LANCZOS resizing to 4096x4096 and JPEG quality 90 reproduce the existing
 large fixture byte-for-byte. The [dataset documentation](https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut)
 identifies it as public domain. These enlarged fixtures measure processing and
 transfer behavior; they are not a representative model-quality benchmark.
+
+### Website and final verification
+
+Commit `552c98f2c2454c575e5548da787fa834076c3011` was pushed to `master`.
+Vercel built it successfully as `dpl_Pb8gMnAVWDrosSuKzmQC31ceGRbB` and attached
+[openbgremover.dev](https://openbgremover.dev) to that production deployment.
+[CI](https://github.com/superuserkalo/openBGremover/actions/runs/38635508750)
+passed a clean npm install, strict TypeScript, lint, all 18 API tests, both
+application builds and seven Python image tests. The legacy Cloud Run route
+returned the exact reference PNG in 24.552 seconds from the Mac.
+
+A temporary authenticated Cloudflare diagnostic in VIE then uploaded the same
+public 4096px JPEG to the deployed website and consumed the entire response.
+It returned only timing, dimensions and a hash to the Mac, excluding the Mac's
+large-image transfer from its timer. Both PNGs were 4096x4096, 12,100,978 bytes,
+and matched the candidate reference SHA-256 exactly, preserving every RGBA pixel.
+
+| Production website smoke check | Cold, n=1 | Warm, n=1 |
+| --- | ---: | ---: |
+| Complete response at cloud diagnostic | 10.733 s | 21.917 s |
+| API wait for Beam response headers | 6.756 s | 3.570 s |
+| API receipt of Beam response body | 0.183 s | 15.763 s |
+| Worker image handler | 3.220 s | 3.010 s |
+
+The first request followed observed zero containers; the second reused that
+same container, confirmed by inventories and task logs. The checkpoint restored
+in 2.540 seconds. These are release smoke checks, not
+a replacement for the earlier 48-request comparison. The warm response was
+slower because Beam-to-Cloudflare body delivery stalled. This excludes the Mac
+and browser as necessary causes of that particular stall. The historical
+58-second observation still cannot be assigned an exact cause retrospectively.
+There is no basis to promise five-second end-to-end delivery from this release.
+
+The diagnostic worker was deleted after these two successful checks. No extra
+storage service or permanently warm capacity was retained. The production E2E
+account was confirmed absent, and v11 is stopped. Raw rollout evidence is under
+`artifacts/benchmarks/pipeline/production-*` and `release-probe/`; earlier
+candidate and comparison evidence remains separate.
+
+Final readback at 21:36 UTC confirmed v14 active, v11 stopped, HTTP 200 API
+health, the retained one-core/8 GiB/checkpoint/60-second configuration, and zero
+running GPU containers after natural scale-to-zero.
