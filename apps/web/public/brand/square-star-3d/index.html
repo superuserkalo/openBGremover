@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>B · Square and star in 3D</title>
+  <link rel="stylesheet" href="preview.css">
+  <script type="module" src="preview.mjs"></script>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <button class="brand" id="header-trigger" aria-label="Animate the header logo">
+        <span class="header-symbol"><img src="symbol.svg" alt=""><canvas data-tile data-coverage="0.83" aria-hidden="true"></canvas></span>
+        <img class="wordmark" src="wordmark.svg" alt="openBGremover">
+      </button>
+      <span class="study-label">B / SQUARE + STAR</span>
+      <button id="theme" class="theme" aria-label="Switch to dark background" aria-pressed="false">Dark background <span aria-hidden="true">◐</span></button>
+    </header>
+    <main>
+      <div class="intro"><h1>Only the star turns.</h1><p>The square and wordmark stay still.</p></div>
+      <section class="preview" aria-label="Interactive 3D logo preview">
+        <span class="corner-label">CONCEPT B</span>
+        <button class="stage" id="stage-trigger" aria-label="Play the star turn inside the fixed square">
+          <span class="large-symbol"><img src="symbol.svg" alt=""><canvas data-tile data-coverage="0.65" aria-hidden="true"></canvas></span>
+        </button>
+        <div class="stage-meta"><span id="status" role="status" aria-live="polite">Resting</span><span>1.52 s / one complete turn</span></div>
+      </section>
+      <div class="transport">
+        <button class="play" id="play">Play turn <span aria-hidden="true">↗</span></button>
+        <label class="speed-label"><span class="sr-only">Playback speed</span><select id="speed"><option value="1">Normal speed</option><option value="0.35">Slow motion</option></select></label>
+        <label class="toggle"><input id="repeat" type="checkbox">Repeat</label>
+        <div class="scrubber"><label for="timeline" class="sr-only">Inspect animation frame</label><input type="range" id="timeline" min="0" max="1000" step="1" value="0" aria-valuetext="Resting"><output for="timeline" id="time">0.00 s</output></div>
+      </div>
+      <div class="bottom-line"><p>Hover the mark or press play. Scrub to inspect the star inside the fixed square.</p><label class="toggle"><input id="reduce" type="checkbox">Reduced motion</label></div>
+      <p id="reduced-note" hidden>Reduced motion is on. The resting mark remains visible.</p>
+      <noscript><p>Enable JavaScript to play the 3D turn. The static mark is shown above.</p></noscript>
+    </main>
+    <footer><span>LOCAL MOTION PREVIEW</span><a href="symbol.svg" download>Static SVG ↗</a></footer>
+  </div>
+</body>
+</html>
