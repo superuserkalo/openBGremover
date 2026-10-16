@@ -1,0 +1,11 @@
+{
+  "name": "@openbg/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./dist/sdk/src/index.d.ts", "import": "./dist/sdk/src/index.js" } },
+  "files": ["dist"],
+  "engines": { "node": ">=22" },
+  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit -p tsconfig.test.json", "prepack": "npm run build" },
+  "dependencies": { "effect": "4.0.4" }
+}
