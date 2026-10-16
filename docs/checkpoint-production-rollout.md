@@ -1,6 +1,6 @@
 # Production checkpoint rollout
 
-Deployed and verified on 14 October 2026. Production now uses a checkpoint captured after model loading and one dummy inference, with `keep_warm_seconds=60` and scale-to-zero. This promotes the configuration measured in the [checkpoint comparison](beam-checkpoint-comparison.md).
+Deployed and verified on 14 October 2026. This page records the original v10 rollout of a checkpoint captured after model loading and one dummy inference, with `keep_warm_seconds=60` and scale-to-zero. The later [CPU comparison and production decision](beam-one-core-rollout.md) selects one-core v11 with the same 8 GiB RAM and checkpoint strategy. That report contains the latest API deployment versions and the initial rollback history. V10 promoted the configuration measured in the [checkpoint comparison](beam-checkpoint-comparison.md).
 
 The warmup loader lives in `workers/background-removal/app.py`; the experiment imports the same loader. It initializes inference at the model's existing 2048×2048 input size, transfers the result to CPU to finish GPU work, then releases unused activation allocations before capture. Requests still use the same pinned BiRefNet model and image-processing function.
 
@@ -15,7 +15,7 @@ The warmup loader lives in `workers/background-removal/app.py`; the experiment i
 | Cloudflare API version | `d42e1bb7-ae82-49f9-8942-4ae8f7caee9a` |
 | Cloud Run compatibility revision | `openbgremover-00039-f5f` |
 
-Both APIs point to v10. The previous non-checkpoint v9 deployment was stopped after the new version passed the production end-to-end test. No database, login, or frontend deployment change was required. The Beam SDK's existing zero-minimum, one-maximum-container defaults were retained.
+Both APIs pointed to v10 at this rollout. The previous non-checkpoint v9 deployment was stopped after the new version passed the production end-to-end test. No database, login, or frontend deployment change was required. The Beam SDK's existing zero-minimum, one-maximum-container defaults were retained.
 
 The snapshot was prepared and tested before customer traffic switched. Its 1.67 GiB archive captured successfully; the direct preparation request took 60.898 seconds including capture/upload and its first image. This one-time setup is excluded from the cold-restore measurements below.
 
@@ -48,6 +48,6 @@ These are rollout checks with the same 512×512 static image used in the compari
 4. Run `npm run test:e2e`, then the latency runner with the new stub ID. Confirm zero containers before labeling a request cold, inspect restore logs and test both website and compatibility upload routes.
 5. Stop the replaced Beam deployment after verification. Keep its deployment record for rollback; do not delete cached model files as part of deployment cleanup.
 
-For rollback to the previous implementation, restart deployment `3d8265d0-85de-4cc2-8b72-b346202956a3` and validate its v9 endpoint before routing both APIs back to it. V9 also uses the 60-second window, but has checkpointing disabled. Stop v10 only after rollback traffic is verified.
+The historical v10-to-v9 rollback used deployment `3d8265d0-85de-4cc2-8b72-b346202956a3`, whose v9 endpoint has the 60-second window but no checkpoints. To revert current one-core production, restart v10 deployment `69afce53-7a54-4af5-8e31-5b99546d1a80`, verify its output, and switch both APIs to its endpoint. The [historical v11-to-v10 rollback](beam-one-core-rollout.md#evidence-and-historical-rollback) preserves the warmed checkpoint strategy.
 
 Ignored local evidence is under `artifacts/deployments/checkpoint-v10/`: preflight image/mask and report, `e2e-report.json`, `latency/report.json`, `summary.json`, Beam logs/task records, route checks and final deployment/container state.

@@ -1,10 +1,14 @@
 # Beam startup and infrastructure costs
 
+Historical analysis. Production now uses checkpoints and a 60-second idle
+window. Read the [14 October sizing review](beam-resource-sizing.md) for current
+allocation, pricing, resource metrics, and smaller configurations to test.
+
 Researched 2026-10-13. USD list prices, before tax and account-specific credits or discounts. This is a cost model, not an invoice audit. The pricing investigation was read-only. A separate temporary checkpoint deployment was subsequently tested and stopped; see [measured results](beam-benchmark.md). Production configuration was unchanged.
 
 ## Findings
 
-The expensive part of sparse traffic is the five-minute paid idle window. The current worker already caches weights on a persistent volume and loads the model once per container. It does not enable GPU memory checkpointing. The separate experiment confirmed checkpoint capture, restore and identical output, but did not establish consistently faster complete-image responses. Keep that result separate from the documented platform capability.
+At the time of this investigation, the expensive part of sparse traffic was the five-minute paid idle window. The worker cached weights on a persistent volume and loaded the model once per container, with checkpointing disabled. The initial experiment confirmed checkpoint capture, restore and identical output, but did not establish consistently faster complete-image responses. Later controlled tests supported the checkpoint rollout linked above.
 
 The old Cloud Run compatibility API also has one minimum instance configured. It is not currently configured to scale to zero.
 
