@@ -1,0 +1,30 @@
+---
+title: Limits and formats
+description: Validate uploads and choose an output format before processing.
+---
+
+## Upload limits
+
+| Limit | Background removal | Compression and conversion |
+| --- | --- | --- |
+| Input size | 10 MiB | 10 MiB |
+| Input pixels | 25 million per image | 25 million per image |
+| Animation | Up to 60 frames and 60 million total frame pixels | Not supported |
+| Output size | 12 MiB encoded image | 12 MiB encoded image |
+| Output formats | PNG, WebP, GIF, JPEG | JPEG, PNG, WebP |
+
+Compression and conversion accept only single-frame, 8-bit JPEG, PNG, and WebP. GIF, AVIF, animated PNG/WebP, and 16-bit PNG are rejected. A conversion may exceed the output limit even if the input fits.
+
+## Transparency
+
+PNG and WebP preserve soft alpha. JPEG flattens transparent pixels onto white. Animated background-removal results use GIF, which cannot preserve soft alpha like PNG or WebP.
+
+## Defaults and overrides
+
+Optional settings use server-owned defaults. Clients should send only the values the caller changes. Invalid format-specific options return 400. Set a conversion target explicitly.
+
+The [playground](/playground) exposes tuning under Advanced settings. Reset to recommended clears overrides; opening Advanced settings alone does not change processing.
+
+## Processing and delivery
+
+Requests are synchronous and return the file in the response. There is no batch queue, durable job status, or idempotency guarantee. See [errors and retries](/docs/errors) before adding retry behavior.

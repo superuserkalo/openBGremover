@@ -1,0 +1,29 @@
+.openbg-docs {
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: #666666;
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--foreground);
+  --color-fd-border: var(--border);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-ring: var(--ring);
+  --fd-layout-width: 96rem;
+}
+
+.openbg-docs#nd-docs-layout,
+.openbg-docs #nd-sidebar {
+  background: var(--background);
+}
+
+.openbg-docs .prose :where(h2, h3, h4) {
+  scroll-margin-top: 5rem;
+  letter-spacing: -0.02em;
+}

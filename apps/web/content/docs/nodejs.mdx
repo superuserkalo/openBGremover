@@ -1,0 +1,45 @@
+---
+title: Node.js SDK
+description: Load files and save decoded image results in Node.js 22 or newer.
+---
+
+## Install from source
+
+The client is not published on npm. From a repository checkout:
+
+```sh
+npm ci
+npm pack ./packages/sdk
+```
+
+Install the generated `openbg-sdk-0.1.0.tgz` in your server project. The tarball includes compiled JavaScript, declarations, and shared contracts.
+
+## Process an image
+
+```ts
+import { OpenBG } from "@openbg/sdk";
+
+const app = new OpenBG({ apiKey: process.env.OPENBG_API_KEY ?? "" });
+const cutout = await app.removeBackground("image.png");
+await cutout.save("cutout.png");
+
+const compressed = await app.compressImage("photo.jpg", { quality: 72 });
+await compressed.save("compressed.jpg");
+
+const converted = await app.convertImage("photo.png", {
+  format: "webp", lossless: true,
+});
+await converted.save("converted.webp");
+```
+
+Methods accept a file path or `Uint8Array`. Options derive from the shared HTTP contracts. Omit settings to use server defaults. Pass an optional third `AbortSignal` argument to cancel the client request.
+
+## Results and failures
+
+Results expose `image`, `metadata`, `processingTimeMs`, and `save()`. Background-removal results can include `mask`. Compression and conversion expose typed byte counts, savings, and applied encoding settings in metadata.
+
+HTTP errors throw `OpenBGError` with `status` and `code`. Native transport and cancellation errors propagate. Calls are sent once. Read [errors and retries](/docs/errors) before adding retries.
+
+## Configure the client
+
+Set `baseUrl` for a self-hosted API and `timeoutMs` to override the default 120-second timeout. The client rejects empty images and files larger than 10 MiB before sending. Redirects are rejected to keep credentials on the configured endpoint.

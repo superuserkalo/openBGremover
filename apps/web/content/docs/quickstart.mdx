@@ -1,0 +1,36 @@
+---
+title: Quickstart
+description: Create an API key and remove your first image background.
+---
+
+## Create an API key
+
+[Create an account](/signup), then open [API keys in your dashboard](/dashboard). Create a key and store it in your server environment. The full key is shown only when you create it.
+
+```sh
+export OPENBG_API_KEY='your-api-key'
+export OPENBG_API_URL='https://openbg-api.gantchevkaloyan.workers.dev'
+```
+
+Never put an API key in browser code or commit it to a repository.
+
+## Send an image
+
+Send the original image bytes. This request uses the default PNG output and saves it directly to a file.
+
+```sh
+curl --fail-with-body "$OPENBG_API_URL/api/v1/remove-background" \
+  -H "Authorization: Bearer $OPENBG_API_KEY" \
+  -H 'Content-Type: application/octet-stream' \
+  -H 'Accept: image/*' \
+  --data-binary @input.jpg \
+  --output cutout.png
+```
+
+A successful response has an image content type. Check the HTTP status before treating the output as an image; errors return JSON. A successful request uses one image credit.
+
+## Choose your next operation
+
+[Background removal](/docs/remove-background) supports masks, resizing, and output formats. [Compression](/docs/compress-image) keeps the format and reduces size when possible. [Conversion](/docs/convert-image) changes a static image to JPEG, PNG, or WebP.
+
+Prefer a client library? Follow the source-installation instructions for [Node.js](/docs/nodejs) or [Python](/docs/python). You can also try the [playground](/playground) before writing code.

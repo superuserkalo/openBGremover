@@ -1,0 +1,51 @@
+---
+title: Convert images
+description: Convert a static image to JPEG, PNG, or WebP.
+---
+
+```http
+POST /api/v1/convert-image
+```
+
+## Request
+
+Conversion requires a JSON body with `image_data` and a target `format`.
+
+```json
+{
+  "image_data": "<base64 image>",
+  "format": "webp",
+  "quality": 80,
+  "lossless": false
+}
+```
+
+Set `Content-Type: application/json` and authenticate with your API key. Use `Accept: image/*` for direct file output, or the default JSON response for base64 and metadata.
+
+## Choose a format
+
+| Format | Transparency | Behavior |
+| --- | --- | --- |
+| `jpeg` or `jpg` | Flattened onto white | Lossy RGB encoding |
+| `png` | Preserved | Lossless encoding |
+| `webp` | Preserved | Lossy by default; optional lossless mode |
+
+`jpg` is an alias. Output metadata and content type use `jpeg`. Conversion may increase file size. Negative `bytes_saved` in the response means the result is larger than the input.
+
+## Encoding options
+
+| Option | Allowed values | Applies to | Default |
+| --- | --- | --- | --- |
+| `quality` | Integer 1–100 | JPEG and WebP | 80 |
+| `lossless` | Boolean | WebP | `false` |
+| `compression_level` | Integer 0–9 | PNG | 6 |
+
+Omit untouched options. Explicit `false` and `0` are preserved; `null` is not a default sentinel. Options for a different output format return 400 before a credit is reserved.
+
+PNG is lossless at every compression level. Higher levels change encoding effort and file size. In lossless WebP mode, quality controls compression effort. Lossless encoding cannot restore detail already lost in a JPEG.
+
+## Image handling
+
+Conversion applies EXIF orientation and omits EXIF and text metadata. RGB ICC profiles are preserved. Profiled CMYK and grayscale inputs convert to sRGB; unprofiled CMYK uses Pillow's RGB conversion.
+
+Inputs must be static, 8-bit JPEG, PNG, or WebP. Animated inputs are rejected. See [limits](/docs/limits).

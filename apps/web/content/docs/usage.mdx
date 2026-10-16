@@ -1,0 +1,30 @@
+---
+title: Usage and credits
+description: Check your balance and inspect recent processing activity.
+---
+
+## Credit balance
+
+Use an owner API key or Supabase session:
+
+```sh
+curl --fail-with-body "$OPENBG_API_URL/api/v1/stats" \
+  -H "Authorization: Bearer $OPENBG_API_KEY"
+```
+
+The response includes `free_credits_remaining`, `bulk_credits_remaining`, `api_calls_total`, `images_processed`, `images_this_month`, and `billing_model`.
+
+Each successful operation consumes one free or prepaid image credit. Free credits are used first. A successful compression that keeps the input still counts as one operation. Failed processing attempts are refunded.
+
+## Recent activity
+
+```sh
+curl --fail-with-body "$OPENBG_API_URL/api/v1/activity?limit=20&offset=0" \
+  -H "Authorization: Bearer $OPENBG_API_KEY"
+```
+
+Activity returns an `activities` array with success status, timing, credit type, and any recorded failure message. Results belong to the authenticated owner. Totals combine all image operations; the current activity records do not have a per-operation field.
+
+## Billing availability
+
+Payment collection is not implemented. `POST /api/v1/billing/upgrade` returns 501 and does not grant credits. Check the dashboard for your current balance.

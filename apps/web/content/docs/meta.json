@@ -1,0 +1,23 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "---Start here---",
+    "index",
+    "quickstart",
+    "authentication",
+    "---Image operations---",
+    "remove-background",
+    "compress-image",
+    "convert-image",
+    "---API reference---",
+    "responses",
+    "limits",
+    "errors",
+    "usage",
+    "---SDKs---",
+    "nodejs",
+    "python",
+    "---More---",
+    "self-hosting"
+  ]
+}

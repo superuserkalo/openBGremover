@@ -1,0 +1,35 @@
+---
+title: Errors and retries
+description: Handle invalid inputs, exhausted credits, and uncertain request outcomes.
+---
+
+## Error responses
+
+Errors return JSON with an `error` message and, when available, an `error_code`.
+
+```json
+{ "error": "Invalid request", "error_code": "INVALID_REQUEST" }
+```
+
+Use the status and machine-readable code for handling. Show the message when it helps the caller correct an input.
+
+| Status | Meaning | Next action |
+| --- | --- | --- |
+| 400 | Invalid input or options | Fix the request |
+| 401 | Missing or invalid credentials | Check the API key or session |
+| 403 | Insufficient key scope | Use an owner key or session |
+| 402 | Credits exhausted | Check your balance |
+| 413 | Body too large | Reduce input size |
+| 429 | Public demo rate limit | Wait before trying the demo again |
+| 502 | Worker or delivery failure | Inspect activity before retrying |
+| 503 | Operation is not configured | Check deployment configuration |
+
+## Credits on failure
+
+The API validates authentication, wire format, byte limits, and options before reserving a credit. Processing failures refund the reservation and record failed usage. A successful compression that returns the original is charged.
+
+## Network interruptions
+
+A timeout or disconnected client does not prove processing stopped. Requests have no idempotency key or durable reservation ledger. Do not blindly retry paid processing after an unknown outcome.
+
+Check [usage and activity](/docs/usage) first. Activity records are useful evidence but cannot guarantee deduplication or prove that an in-flight request has stopped. The source clients send processing requests once and do not retry automatically.

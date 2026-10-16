@@ -1,0 +1,41 @@
+---
+title: Responses
+description: Receive image bytes or JSON with base64 image data and metadata.
+---
+
+## JSON output
+
+JSON is the default response format. Decode `result_image` from base64 to get the output file. Background removal can also return `mask_image` when requested.
+
+```json
+{
+  "success": true,
+  "result_image": "<base64 image>",
+  "processing_time_ms": 125,
+  "metadata": {
+    "operation": "compress-image",
+    "format": "jpeg",
+    "original_size": [1600, 1200],
+    "output_size": [1600, 1200],
+    "input_bytes": 300000,
+    "output_bytes": 180000,
+    "bytes_saved": 120000,
+    "retained_original": false,
+    "quality_used": "80"
+  }
+}
+```
+
+These values illustrate the structure. They are not a latency or size-reduction guarantee. Metadata fields depend on the operation.
+
+## Binary output
+
+Send `Accept: image/*` to receive encoded bytes. The response Content-Type identifies the actual output format. The `X-Image-Metadata` header contains JSON metadata and is exposed to browser clients through CORS.
+
+A background-removal request with `return_mask: true` retains JSON output so it can return both images.
+
+## Compression and conversion metadata
+
+`input_bytes` and `output_bytes` describe file sizes. `bytes_saved` is their difference and may be negative for conversion. `retained_original` tells you whether compression selected the input bytes. Applied encoding settings are omitted when the original is retained.
+
+Top-level `processing_time_ms` covers the worker round trip and delivery. Timing inside metadata describes the Python operation.

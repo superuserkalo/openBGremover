@@ -1,0 +1,36 @@
+---
+title: Authentication
+description: Authenticate requests with an owner API key or a Supabase session.
+---
+
+## API keys
+
+Create keys in the [dashboard](/dashboard). Send a key in the Authorization header on every processing or usage request.
+
+```http
+Authorization: Bearer YOUR_API_KEY
+```
+
+Keep keys in server environment variables or a secret store. Revoke a key in the dashboard when you no longer need it. A revoked key cannot authorize subsequent requests.
+
+## Sessions and account management
+
+The website signs in through Supabase. A valid Supabase session access token can call image-processing and usage endpoints for its owner.
+
+Key creation, key listing, key revocation, and account deletion require a session. An API key cannot manage your account or mint more keys.
+
+| Endpoint | Authentication |
+| --- | --- |
+| `POST /api/v1/remove-background` | Owner API key or session |
+| `POST /api/v1/compress-image` | Owner API key or session |
+| `POST /api/v1/convert-image` | Owner API key or session |
+| `GET /api/v1/stats` | Owner API key or session |
+| `GET /api/v1/activity` | Owner API key or session |
+| `GET /api/v1/keys`, `POST /api/v1/keys` | Session |
+| `DELETE /api/v1/keys/:id`, `DELETE /api/v1/account` | Session |
+
+## Public demo
+
+The public background-removal demo uses a server-only trial key and rate limiting. That key stays on the server and is restricted to trial requests. Compression and conversion require sign-in in the playground.
+
+Missing or invalid credentials return 401. Insufficient scope returns 403. See [errors and retries](/docs/errors).

@@ -1,0 +1,43 @@
+---
+title: Remove backgrounds
+description: Create a transparent cutout, resize the output, or return a mask.
+---
+
+```http
+POST /api/v1/remove-background
+```
+
+## Request
+
+Send a JSON object containing base64 image data. Only `image_data` is required. For original-byte uploads with defaults, see the [quickstart](/docs/quickstart).
+
+```json
+{
+  "image_data": "<base64 image>",
+  "format": "png",
+  "return_mask": true,
+  "resize_options": { "max_width": 1400, "max_height": 1400 }
+}
+```
+
+| Field | Values | Default |
+| --- | --- | --- |
+| `image_data` | Base64 image, optionally a data URL | Required |
+| `format` | `png`, `webp`, `gif`, `jpg`, `jpeg` | `png` |
+| `quality` | `auto`, `quality`, `portrait`, `product`, `speed` | `auto` |
+| `return_mask` | Boolean, static images only | `false` |
+| `resize_options` | Target or maximum dimensions | Original dimensions |
+
+Quality names are accepted presets for the same matting model. They do not select different models.
+
+## Resizing
+
+Use `max_width` and `max_height` to constrain dimensions, or `width` and `height` to choose a target size. `keep_aspect` defaults to `true`. Output dimensions are capped at 8192 per side and 25 million pixels.
+
+## Output
+
+PNG and WebP preserve soft transparency. JPEG composites the result against white. Animated inputs produce GIF output. A mask, when requested for a static image, is a PNG returned in `mask_image`.
+
+JSON responses include `success`, `result_image`, `processing_time_ms`, and `metadata`. Decode `result_image` from base64 to save it. `Accept: image/*` requests image bytes directly, unless you request a mask, which keeps the JSON image-and-mask response.
+
+See [responses](/docs/responses) for both delivery formats and [limits](/docs/limits) before accepting uploads.

@@ -1,0 +1,49 @@
+---
+title: Compress images
+description: Keep the source format and return a file no larger than the original.
+---
+
+```http
+POST /api/v1/compress-image
+```
+
+## Request
+
+Upload JPEG, PNG, or WebP bytes to use default settings:
+
+```sh
+curl --fail-with-body "$OPENBG_API_URL/api/v1/compress-image" \
+  -H "Authorization: Bearer $OPENBG_API_KEY" \
+  -H 'Content-Type: image/jpeg' \
+  -H 'Accept: image/*' \
+  --data-binary @input.jpg \
+  --output compressed.jpg
+```
+
+For overrides, send JSON with `Content-Type: application/json`:
+
+```json
+{ "image_data": "<base64 JPEG>", "quality": 72 }
+```
+
+Compression has no `format` option. Use [conversion](/docs/convert-image) to change formats.
+
+## Encoding options
+
+| Option | Allowed values | Applies to | Default |
+| --- | --- | --- | --- |
+| `quality` | Integer 1–100 | JPEG and WebP | 80 |
+| `lossless` | Boolean | WebP | `false` |
+| `compression_level` | Integer 0–9 | PNG | 6 |
+
+Omit untouched options. Explicit `false` and `0` are preserved; `null` is not a default sentinel. Options for a different output format return 400 before a credit is reserved.
+
+PNG is lossless at every compression level. Higher levels change encoding effort and file size. In lossless WebP mode, quality controls compression effort. Lossless encoding cannot restore detail already lost in a JPEG.
+
+## When the original is smaller
+
+If re-encoding cannot reduce size, the API returns the original bytes. Metadata reports `retained_original: true` and `bytes_saved: 0`. The original metadata and EXIF orientation tag remain intact. A successful unchanged result still costs one image credit.
+
+Re-encoded results apply EXIF orientation and omit EXIF and text metadata. RGB ICC profiles are preserved. Only static, 8-bit JPEG, PNG, and WebP inputs are supported.
+
+See [responses](/docs/responses) for savings metadata and [limits](/docs/limits) for upload restrictions.

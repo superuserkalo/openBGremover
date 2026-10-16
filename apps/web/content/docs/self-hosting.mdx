@@ -1,0 +1,37 @@
+---
+title: Self-hosting
+description: Run the website and shared API against your own infrastructure.
+---
+
+## Repository setup
+
+The [repository README](https://github.com/superuserkalo/openBGremover#readme) has setup commands, environment configuration, and required checks. Use Node.js 22.12 or newer and the committed npm lockfile.
+
+```sh
+npm ci
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+cp apps/web/.env.example apps/web/.env.local
+npm run types -w @openbg/api
+npm run dev:api
+# In another terminal:
+npm run dev:web
+```
+
+## Components
+
+| Component | Responsibility |
+| --- | --- |
+| `apps/web` | Next.js website, documentation, login, and playground |
+| `apps/api` | Authentication, routes, processing, and accounting on Cloudflare Workers |
+| `packages/contracts` | Shared Effect Schema wire contracts |
+| Supabase | Postgres and login |
+| Cloudflare Hyperdrive | API connection to Postgres |
+| Beam | Python background-removal and CPU image workers |
+
+Store credentials in ignored environment files or provider secret stores. The trial key is server-only. Keep Hyperdrive query caching disabled for balance, revocation, and usage queries.
+
+## Configure processing
+
+Background removal uses `BEAM_ENDPOINT_URL`. Compression and conversion require `IMAGE_PROCESSING_ENDPOINT_URL`. If the CPU endpoint is missing, those operations return 503 before reserving credits.
+
+Read the [migration guide](https://github.com/superuserkalo/openBGremover/blob/main/docs/migration.md) for auth signing-key compatibility, accounting limits, and rollout configuration. Before changing GPU deployment, follow the [checkpoint rollout procedure](https://github.com/superuserkalo/openBGremover/blob/main/docs/checkpoint-production-rollout.md).

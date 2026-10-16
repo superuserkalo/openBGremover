@@ -1,0 +1,33 @@
+---
+title: openBGremover documentation
+description: Process images from your app or agent with one authenticated HTTP API.
+---
+
+Remove backgrounds, compress images, and convert formats. Use the HTTP API directly or the Node.js and Python clients. The website uses the same API.
+
+## Start here
+
+<Cards>
+  <Card title="Quickstart" href="/docs/quickstart">Create an API key and save your first processed image.</Card>
+  <Card title="Authentication" href="/docs/authentication">Connect your application and keep credentials on your server.</Card>
+  <Card title="Node.js SDK" href="/docs/nodejs">Read a file, call an operation, and save the result.</Card>
+  <Card title="Python SDK" href="/docs/python">Process images with a standard-library Python client.</Card>
+</Cards>
+
+## Image operations
+
+| Operation | What you get | Guide |
+| --- | --- | --- |
+| Background removal | A cutout with soft transparency, with an optional mask | [Remove backgrounds](/docs/remove-background) |
+| Compression | The same format, no larger than the original | [Compress images](/docs/compress-image) |
+| Conversion | A JPEG, PNG, or WebP in your chosen format | [Convert images](/docs/convert-image) |
+
+All three operations return the output in the response. You can request encoded image bytes or JSON with base64 image data. Each successful request uses one image credit, including compression that keeps the original.
+
+## Before you build
+
+Omit optional settings to use server defaults. The playground keeps overrides under Advanced settings and provides a reset action. Conversion always requires a target format.
+
+Requests run synchronously. There are no durable jobs or idempotency keys, so a lost connection needs an activity check before you retry. Read [errors and retries](/docs/errors) and [limits and formats](/docs/limits).
+
+Node.js and Python clients are available from source. CLI, skill, and MCP clients are planned.

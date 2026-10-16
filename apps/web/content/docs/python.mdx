@@ -1,0 +1,38 @@
+---
+title: Python SDK
+description: Process images with Python 3.10 or newer using a standard-library client.
+---
+
+## Install from source
+
+The package is not published on PyPI. From a repository checkout:
+
+```sh
+python -m pip install ./packages/python-sdk
+```
+
+## Process an image
+
+```python
+import os
+from openbg import OpenBG
+
+app = OpenBG(api_key=os.environ["OPENBG_API_KEY"])
+app.remove_background("image.png").save("cutout.png")
+app.compress_image("photo.jpg", quality=72).save("compressed.jpg")
+app.convert_image(
+    "photo.png", format="webp", lossless=True
+).save("converted.webp")
+```
+
+Methods accept a file path, `Path`, or bytes. Conversion requires `format`. Optional `None` values are omitted from requests, so the server chooses defaults. Explicit `False` and `0` are preserved.
+
+## Results and failures
+
+Results expose `image`, `format`, `processing_time_ms`, and `save()`. Background-removal results can include `mask`. Transform results also include typed `metadata` with dimensions, byte counts, savings, and encoding settings.
+
+HTTP errors raise `OpenBGError` with `status` and `code`. Native transport errors propagate. The client does not retry processing calls.
+
+## Configure the client
+
+Set `base_url` for a self-hosted endpoint and `timeout` in seconds to override the 120-second default. The client rejects empty images and files larger than 10 MiB before sending. Pixel validation stays on the server. Redirects are rejected.
