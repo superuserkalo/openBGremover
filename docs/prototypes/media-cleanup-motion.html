@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media cleanup motion study</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fafafa;color:#262626;font:15px/1.6 system-ui,sans-serif}.intro{max-width:650px;min-height:100vh;margin:0 auto;padding:90px 24px 36px}h1{font-size:36px;line-height:1.1;letter-spacing:-.04em}p{color:#737373}.stage{max-width:650px;margin:0 auto 90px;border:1px solid #e9e9e9;background:white}.bar{display:flex;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e9e9e9;font:12px monospace}.row{display:flex;align-items:center;gap:24px;height:58px;margin:0 24px;border-bottom:1px solid #eee}.row:last-child{border:0}.row span{width:125px;font:12px monospace}.row i{display:block;height:7px;background:#ccc;border-radius:4px}.kept i{background:#737373}.spacer{height:110vh}.caption{padding:0 24px;max-width:650px;margin:0 auto}a{color:#ba3800}@media(max-width:600px){.intro{padding-top:48px}h1{font-size:30px}.stage{margin:0 16px 60px}.row{gap:12px;margin:0 16px}.row span{width:108px;font-size:11px}.bar{padding:16px}.intro p{font-size:14px}}
+</style>
+<div class="intro"><p>openBGremover / motion study</p><h1>Keep the image.<br>Drop the extra data.</h1><p>An illustrative sequence for studying timing. It does not run compression or represent measured file savings. Original code and copy, with no Firecrawl assets.</p></div>
+<div class="stage" data-study-root="tokens" aria-label="Illustrative media cleanup sequence">
+ <div class="bar"><span>sample-image.png</span><span>timing prototype</span></div>
+ <div>
+ <div class="row" data-study-row="0"><span>metadata</span><i style="width:72%"></i></div>
+ <div class="row kept" data-study-row="1"><span>image pixels</span><i style="width:38%"></i></div>
+ <div class="row" data-study-row="2"><span>extra preview</span><i style="width:86%"></i></div>
+ <div class="row kept" data-study-row="3"><span>soft alpha</span><i style="width:64%"></i></div>
+ <div class="row" data-study-row="4"><span>unused padding</span><i style="width:58%"></i></div>
+ </div>
+</div>
+<p class="caption">The retained rows change color after cleanup. Scroll away to pause; return to resume. Reduced motion shows the finished state.</p><div class="spacer"></div>
+<script type="module">
+const stage=document.querySelector('.stage');
+const rows=[...stage.querySelectorAll('.row')];
+const motion=matchMedia('(prefers-reduced-motion: reduce)');
+const cycle=3500, fade=500;
+// CSS `ease`: cubic-bezier(.25,.1,.25,1), evaluated from loop time.
+function ease(p){let low=0,high=1,t=p;for(let i=0;i<18;i++){t=(low+high)/2;const x=3*(1-t)*(1-t)*t*.25+3*(1-t)*t*t*.25+t*t*t;if(x<p)low=t;else high=t;}return 3*(1-t)*(1-t)*t*.1+3*(1-t)*t*t+t*t*t}
+function render(t){const phase=t%cycle,lap=Math.floor(t/cycle);for(let i=0;i<rows.length;i++){const row=rows[i],junk=i%2===0;let opacity=1;if(junk){const start=(i/2+1)*500;if(phase<500&&lap>0)opacity=.16+.84*ease(phase/500);else if(phase>=start)opacity=1-.84*ease(Math.min(1,(phase-start)/fade));}row.style.opacity=String(opacity);if(!junk)row.querySelector('i').style.background=phase>=2000?'#fa4b00':'#737373';}}
+let elapsed=0,previous=0,frame=0,visible=false;
+function tick(now){elapsed+=now-previous;previous=now;render(elapsed);frame=requestAnimationFrame(tick)}
+function playback(){cancelAnimationFrame(frame);if(motion.matches){render(2500);return;}if(visible&&!document.hidden){previous=performance.now();frame=requestAnimationFrame(tick)}}
+const observer=new IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting);playback()});
+render(0);observer.observe(stage);motion.addEventListener('change',playback);document.addEventListener('visibilitychange',playback);
+</script>
+</html>

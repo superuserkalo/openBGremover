@@ -238,22 +238,22 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Enhanced Navigation Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-neutral-950 border-b border-neutral-800">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center space-x-3 group cursor-pointer">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-all duration-300 group-hover:scale-110"></div>
-              <span className="text-xl font-semibold text-white group-hover:text-orange-100 transition-colors duration-300">
+              <div className="w-8 h-8 bg-primary rounded-lg shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-all duration-300 group-hover:scale-110"></div>
+              <span className="text-xl font-semibold text-foreground group-hover:text-orange-100 transition-colors duration-300">
                 openBGremover
               </span>
             </Link>
@@ -262,21 +262,21 @@ export default function DashboardPage() {
             <div className="hidden lg:flex items-center space-x-8">
               <Link
                 href="/pricing"
-                className="text-neutral-400 hover:text-white transition-all duration-300 hover:scale-105 relative group cursor-pointer"
+                className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-105 relative group cursor-pointer"
               >
                 Pricing
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-orange-400 transition-all duration-300 group-hover:w-full"></span>
               </Link>
               <Link
                 href="/docs"
-                className="text-neutral-400 hover:text-white transition-all duration-300 hover:scale-105 relative group cursor-pointer"
+                className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-105 relative group cursor-pointer"
               >
                 Documentation
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-orange-400 transition-all duration-300 group-hover:w-full"></span>
               </Link>
               <Link
                 href="https://github.com/superuserkalo/openBGremover"
-                className="flex items-center space-x-1 text-neutral-400 hover:text-white transition-all duration-300 hover:scale-105 group cursor-pointer"
+                className="flex items-center space-x-1 text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-105 group cursor-pointer"
               >
                 <Github className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
                 <span>GitHub</span>
@@ -290,18 +290,18 @@ export default function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-neutral-500 hover:text-orange-400 hover:bg-neutral-900 text-xs px-2 py-1 h-7 transition-all duration-300 hover:scale-105 cursor-pointer"
+                  className="text-muted-foreground hover:text-primary hover:bg-card text-xs px-2 py-1 h-7 transition-all duration-300 hover:scale-105 cursor-pointer"
                 >
                   <Coffee className="w-3 h-3 mr-1 hover:rotate-12 transition-transform duration-300" />
                   <span className="hidden xl:inline">Coffee</span>
                 </Button>
               </Link>
-              <span className="text-neutral-400 text-sm">{user?.email || user?.user_metadata?.full_name || "User"}</span>
+              <span className="text-muted-foreground text-sm">{user?.email || user?.user_metadata?.full_name || "User"}</span>
               <Button
                 onClick={handleSignOut}
                 variant="ghost"
                 size="sm"
-                className="text-neutral-400 hover:text-white hover:bg-neutral-800 transition-all duration-300 hover:scale-105 cursor-pointer"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 hover:scale-105 cursor-pointer"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign out
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-neutral-400 hover:text-white p-2 cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-2 cursor-pointer"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
@@ -323,42 +323,42 @@ export default function DashboardPage() {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="lg:hidden border-t border-neutral-800 py-4 space-y-4 animate-fade-in-up">
+            <div className="lg:hidden border-t border-border py-4 space-y-4 ">
               <Link
                 href="/pricing"
-                className="block text-neutral-400 hover:text-white transition-colors duration-300 py-2 cursor-pointer"
+                className="block text-muted-foreground hover:text-foreground transition-colors duration-300 py-2 cursor-pointer"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Pricing
               </Link>
               <Link
                 href="/docs"
-                className="block text-neutral-400 hover:text-white transition-colors duration-300 py-2 cursor-pointer"
+                className="block text-muted-foreground hover:text-foreground transition-colors duration-300 py-2 cursor-pointer"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Documentation
               </Link>
               <Link
                 href="https://github.com/superuserkalo/openBGremover"
-                className="flex items-center space-x-2 text-neutral-400 hover:text-white transition-colors duration-300 py-2 cursor-pointer"
+                className="flex items-center space-x-2 text-muted-foreground hover:text-foreground transition-colors duration-300 py-2 cursor-pointer"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Github className="w-4 h-4" />
                 <span>GitHub</span>
                 <Star className="w-3 h-3" />
               </Link>
-              <div className="border-t border-neutral-800 pt-4 space-y-3">
+              <div className="border-t border-border pt-4 space-y-3">
                 <Link href="https://ko-fi.com/tsarkalo" target="_blank" onClick={() => setMobileMenuOpen(false)}>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full text-neutral-500 hover:text-orange-400 hover:bg-neutral-900 justify-start cursor-pointer"
+                    className="w-full text-muted-foreground hover:text-primary hover:bg-card justify-start cursor-pointer"
                   >
                     <Coffee className="w-3 h-3 mr-2" />
                     Buy us a coffee
                   </Button>
                 </Link>
-                <div className="text-neutral-400 text-sm px-3 py-2">
+                <div className="text-muted-foreground text-sm px-3 py-2">
                   {user?.email || user?.user_metadata?.full_name || "User"}
                 </div>
                 <Button
@@ -367,7 +367,7 @@ export default function DashboardPage() {
                     handleSignOut()
                   }}
                   variant="ghost"
-                  className="w-full text-neutral-400 hover:text-white hover:bg-neutral-800 justify-start cursor-pointer"
+                  className="w-full text-muted-foreground hover:text-foreground hover:bg-muted justify-start cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign out
@@ -381,7 +381,7 @@ export default function DashboardPage() {
       {/* Main Layout with Sidebar */}
       <div className="flex pt-16">
         {/* Sidebar */}
-        <aside className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-neutral-900 border-r border-neutral-800 transform transition-transform duration-300 z-40 ${
+        <aside className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-card border-r border-border transform transition-transform duration-300 z-40 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}>
           <nav className="p-4 space-y-2">
@@ -403,8 +403,8 @@ export default function DashboardPage() {
                   }}
                   className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors cursor-pointer ${
                     activeSection === item.id
-                      ? 'bg-orange-500/20 text-orange-400'
-                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                      ? 'bg-orange-500/20 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -426,12 +426,12 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="flex-1 lg:ml-64">
           {/* Mobile sidebar toggle */}
-          <div className="lg:hidden p-4 border-b border-neutral-800">
+          <div className="lg:hidden p-4 border-b border-border">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(true)}
-              className="text-neutral-400 hover:text-white cursor-pointer"
+              className="text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <Menu className="w-5 h-5 mr-2" />
               Menu
@@ -442,61 +442,64 @@ export default function DashboardPage() {
             {activeSection === "dashboard" && (
               <div>
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-                  <p className="text-neutral-400">Welcome back! Here's an overview of your background removal API usage.</p>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
+                  <p className="text-muted-foreground">Welcome back! Here's an overview of your background removal API usage.</p>
                 </div>
 
                 {/* Stats Cards */}
                 <div className="grid md:grid-cols-3 gap-6 mb-8">
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-neutral-400">Images Processed</CardTitle>
-                      <BarChart3 className="h-4 w-4 text-orange-400" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Images Processed</CardTitle>
+                      <BarChart3 className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-white">
+                      <div className="text-2xl font-bold text-foreground">
                         {statsLoading ? <Skeleton className="h-6 w-16" /> : (stats?.images_this_month ?? 0)}
                       </div>
-                      <p className="text-xs text-neutral-500">This month</p>
+                      <p className="text-xs text-muted-foreground">This month</p>
                     </CardContent>
                   </Card>
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-neutral-400">API Calls</CardTitle>
-                      <Key className="h-4 w-4 text-orange-400" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">API Calls</CardTitle>
+                      <Key className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-white">
+                      <div className="text-2xl font-bold text-foreground">
                         {statsLoading ? <Skeleton className="h-6 w-16" /> : (stats?.api_calls_total ?? 0)}
                       </div>
-                      <p className="text-xs text-neutral-500">Total background removal requests</p>
+                      <p className="text-xs text-muted-foreground">Total background removal requests</p>
                     </CardContent>
                   </Card>
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-neutral-400">Credits Remaining</CardTitle>
-                      <CreditCard className="h-4 w-4 text-orange-400" />
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Credits Remaining</CardTitle>
+                      <CreditCard className="h-4 w-4 text-primary" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-white">
+                      <div className="text-2xl font-bold text-foreground">
                         {statsLoading ? <Skeleton className="h-6 w-24" /> : ((stats?.free_credits_remaining ?? 0) + (stats?.bulk_credits_remaining ?? 0))}
                       </div>
-                      <p className="text-xs text-neutral-500">Free {stats?.free_credits_remaining ?? 0} • Bulk {stats?.bulk_credits_remaining ?? 0}</p>
+                      <p className="text-xs text-muted-foreground">Free {stats?.free_credits_remaining ?? 0} • Bulk {stats?.bulk_credits_remaining ?? 0}</p>
                     </CardContent>
                   </Card>
                 </div>
 
                 {/* Quick Actions */}
                 <div className="grid md:grid-cols-2 gap-6">
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader>
-                      <CardTitle className="text-white">Quick Actions</CardTitle>
-                      <p className="text-neutral-400 text-sm">Common tasks and shortcuts</p>
+                      <CardTitle className="text-foreground">Quick Actions</CardTitle>
+                      <p className="text-muted-foreground text-sm">Common tasks and shortcuts</p>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href="/playground">Open image tools</Link>
+                      </Button>
                       <Button
                         onClick={() => navigate("apikeys")}
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                       >
                         <Key className="w-4 h-4 mr-2" />
                         Manage API Keys
@@ -504,7 +507,7 @@ export default function DashboardPage() {
                       <Button
                         onClick={() => navigate("activity")}
                         variant="outline"
-                        className="w-full border-neutral-600 text-neutral-300 hover:bg-neutral-800 cursor-pointer"
+                        className="w-full border-input text-foreground hover:bg-muted cursor-pointer"
                       >
                         <Activity className="w-4 h-4 mr-2" />
                         View Activity Log
@@ -512,16 +515,16 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-neutral-900 border-neutral-800 flex flex-col">
+                  <Card className="bg-card border-border flex flex-col">
                     <CardHeader className="flex-1">
-                      <CardTitle className="text-white">Purchase Images</CardTitle>
-                      <p className="text-neutral-400 text-sm">Buy bulk image processing packages at discounted rates</p>
+                      <CardTitle className="text-foreground">Purchase Images</CardTitle>
+                      <p className="text-muted-foreground text-sm">Buy bulk image processing packages at discounted rates</p>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <Button
                         onClick={() => navigate('billing')}
                         variant="outline"
-                        className="w-full border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer"
+                        className="w-full border-input text-foreground hover:bg-muted hover:border-ring hover:text-foreground cursor-pointer"
                       >
                         <CreditCard className="w-4 h-4 mr-2" />
                         Purchase More Images
@@ -538,10 +541,10 @@ export default function DashboardPage() {
                 <div className="mb-8">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h1 className="text-3xl font-bold text-white mb-2">Billing</h1>
-                      <p className="text-neutral-400">Pick a plan, add credits, and keep building.</p>
+                      <h1 className="text-3xl font-bold text-foreground mb-2">Billing</h1>
+                      <p className="text-muted-foreground">Pick a plan, add credits, and keep building.</p>
                     </div>
-                    <div className="hidden md:flex items-center gap-2 text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 px-3 py-1.5 rounded-full">
+                    <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border px-3 py-1.5 rounded-full">
                       <Shield className="w-3.5 h-3.5 text-green-400" />
                       Secure payments coming soon
                     </div>
@@ -549,39 +552,39 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Segmented control */}
-                <div className="mb-6 inline-flex p-1 rounded-lg bg-neutral-900 border border-neutral-800">
-                  <button onClick={() => setBillingPlan('payg')} className={`px-3.5 py-1.5 rounded-md text-sm transition-colors ${billingPlan==='payg' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white' : 'text-neutral-300 hover:text-white'}`}>Pay‑as‑you‑go</button>
-                  <button onClick={() => setBillingPlan('bulk')} className={`px-3.5 py-1.5 rounded-md text-sm transition-colors ${billingPlan==='bulk' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white' : 'text-neutral-300 hover:text-white'}`}>Bulk packages</button>
+                <div className="mb-6 inline-flex p-1 rounded-lg bg-card border border-border">
+                  <button onClick={() => setBillingPlan('payg')} className={`px-3.5 py-1.5 rounded-md text-sm transition-colors ${billingPlan==='payg' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-foreground' : 'text-foreground hover:text-foreground'}`}>Pay‑as‑you‑go</button>
+                  <button onClick={() => setBillingPlan('bulk')} className={`px-3.5 py-1.5 rounded-md text-sm transition-colors ${billingPlan==='bulk' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-foreground' : 'text-foreground hover:text-foreground'}`}>Bulk packages</button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Main column */}
                   <div className="lg:col-span-2 space-y-6">
                     {billingPlan === 'payg' && (
-                      <Card className="bg-neutral-900/95 border-neutral-800 relative overflow-hidden">
+                      <Card className="bg-card/95 border-border relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5 pointer-events-none" />
                         <CardHeader>
-                          <CardTitle className="text-white flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-orange-400" /> Enable Pay‑as‑you‑go
+                          <CardTitle className="text-foreground flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-primary" /> Enable Pay‑as‑you‑go
                           </CardTitle>
-                          <p className="text-neutral-400 text-sm">Pay only for successful images. No expirations. Switch anytime.</p>
+                          <p className="text-muted-foreground text-sm">Pay only for successful images. No expirations. Switch anytime.</p>
                         </CardHeader>
                         <CardContent>
                           <div className="grid sm:grid-cols-2 gap-4 mb-4">
                             {["No commitments", "Wallet-style balance", "Full API access", "Same SLA"].map(f => (
-                              <div key={f} className="flex items-center gap-2 text-neutral-300 text-sm">
-                                <Check className="w-4 h-4 text-orange-400" />
+                              <div key={f} className="flex items-center gap-2 text-foreground text-sm">
+                                <Check className="w-4 h-4 text-primary" />
                                 <span>{f}</span>
                               </div>
                             ))}
                           </div>
                           <div className="flex items-center justify-between gap-4">
-                            <div className="text-sm text-neutral-400">Current model: <span className="text-white font-medium">{stats?.billing_model || 'free_tier'}</span></div>
-                            <Button disabled={billingLoading} onClick={() => upgradeBilling('payg')} className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer">
+                            <div className="text-sm text-muted-foreground">Current model: <span className="text-foreground font-medium">{stats?.billing_model || 'free_tier'}</span></div>
+                            <Button disabled={billingLoading} onClick={() => upgradeBilling('payg')} className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
                               {billingLoading ? 'Saving…' : 'Enable PAYG'}
                             </Button>
                           </div>
-                          {billingMessage && <div className="mt-3 text-xs text-neutral-400">{billingMessage}</div>}
+                          {billingMessage && <div className="mt-3 text-xs text-muted-foreground">{billingMessage}</div>}
                         </CardContent>
                       </Card>
                     )}
@@ -589,20 +592,20 @@ export default function DashboardPage() {
                     {billingPlan === 'bulk' && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {([{name:'Starter', pkg:'starter', images:'1,000', desc:'Kickstart small projects', popular:false}, {name:'Pro', pkg:'pro', images:'10,000', desc:'Scale your workloads', popular:true}, {name:'Enterprise', pkg:'enterprise', images:'100,000', desc:'Serious volume', popular:false}] as const).map((p) => (
-                          <Card key={p.pkg} className={`bg-neutral-900 border-neutral-800 hover:border-neutral-700 transition-colors relative overflow-hidden ${p.popular ? 'ring-1 ring-orange-500/30' : ''}`}>
+                          <Card key={p.pkg} className={`bg-card border-border hover:border-input transition-colors relative overflow-hidden ${p.popular ? 'ring-1 ring-orange-500/30' : ''}`}>
                             {p.popular && (
-                              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-center py-1.5 text-xs font-medium">Most popular</div>
+                              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-amber-500 text-foreground text-center py-1.5 text-xs font-medium">Most popular</div>
                             )}
                             <CardHeader className="pt-6">
-                              <CardTitle className="text-white">{p.name}</CardTitle>
-                              <p className="text-neutral-400 text-sm">{p.desc}</p>
+                              <CardTitle className="text-foreground">{p.name}</CardTitle>
+                              <p className="text-muted-foreground text-sm">{p.desc}</p>
                             </CardHeader>
                             <CardContent>
                               <div className="mb-4">
-                                <div className="text-2xl font-semibold text-white">{p.images} images</div>
-                                <div className="text-xs text-neutral-500">Never expires</div>
+                                <div className="text-2xl font-semibold text-foreground">{p.images} images</div>
+                                <div className="text-xs text-muted-foreground">Never expires</div>
                               </div>
-                              <Button disabled={billingLoading} onClick={() => upgradeBilling('bulk', p.pkg, false)} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer">
+                              <Button disabled={billingLoading} onClick={() => upgradeBilling('bulk', p.pkg, false)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
                                 {billingLoading ? 'Processing…' : `Buy ${p.name}`}
                               </Button>
                             </CardContent>
@@ -614,38 +617,38 @@ export default function DashboardPage() {
 
                   {/* Summary / Side column */}
                   <div className="space-y-6">
-                    <Card className="bg-neutral-900 border-neutral-800">
+                    <Card className="bg-card border-border">
                       <CardHeader>
-                        <CardTitle className="text-white">Summary</CardTitle>
-                        <p className="text-neutral-400 text-sm">Your current balances and limits</p>
+                        <CardTitle className="text-foreground">Summary</CardTitle>
+                        <p className="text-muted-foreground text-sm">Your current balances and limits</p>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-400">Billing model</span>
-                          <span className="text-white font-medium">{stats?.billing_model || 'free_tier'}</span>
+                          <span className="text-muted-foreground">Billing model</span>
+                          <span className="text-foreground font-medium">{stats?.billing_model || 'free_tier'}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-400">Free credits</span>
-                          <span className="text-white font-medium">{stats?.free_credits_remaining ?? 0}</span>
+                          <span className="text-muted-foreground">Free credits</span>
+                          <span className="text-foreground font-medium">{stats?.free_credits_remaining ?? 0}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-400">Bulk credits</span>
-                          <span className="text-white font-medium">{stats?.bulk_credits_remaining ?? 0}</span>
+                          <span className="text-muted-foreground">Bulk credits</span>
+                          <span className="text-foreground font-medium">{stats?.bulk_credits_remaining ?? 0}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-neutral-400">Processed this month</span>
-                          <span className="text-white font-medium">{stats?.images_this_month ?? 0}</span>
+                          <span className="text-muted-foreground">Processed this month</span>
+                          <span className="text-foreground font-medium">{stats?.images_this_month ?? 0}</span>
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-neutral-900 border-neutral-800">
+                    <Card className="bg-card border-border">
                       <CardHeader>
-                        <CardTitle className="text-white">Receipts</CardTitle>
-                        <p className="text-neutral-400 text-sm">History coming with payments integration</p>
+                        <CardTitle className="text-foreground">Receipts</CardTitle>
+                        <p className="text-muted-foreground text-sm">History coming with payments integration</p>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-sm text-neutral-400">No receipts yet</div>
+                        <div className="text-sm text-muted-foreground">No receipts yet</div>
                       </CardContent>
                     </Card>
                   </div>
@@ -656,11 +659,11 @@ export default function DashboardPage() {
             {activeSection === "activity" && (
               <div>
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-white mb-2">Activity Log</h1>
-                  <p className="text-neutral-400">Complete history of your API usage and account activity.</p>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Activity Log</h1>
+                  <p className="text-muted-foreground">Complete history of your API usage and account activity.</p>
                 </div>
 
-                <Card className="bg-neutral-900 border-neutral-800">
+                <Card className="bg-card border-border">
                   <CardContent className="p-0">
                     <div className="divide-y divide-neutral-800">
                       {activitiesLoading && (
@@ -680,7 +683,7 @@ export default function DashboardPage() {
                         </div>
                       )}
                       {!activitiesLoading && activities.length === 0 && (
-                        <div className="p-4 text-neutral-400 text-sm">No activity yet</div>
+                        <div className="p-4 text-muted-foreground text-sm">No activity yet</div>
                       )}
                       {!activitiesLoading && activities.map((a) => {
                         // Derive action label by source
@@ -706,16 +709,16 @@ export default function DashboardPage() {
                         const detail = detailParts.join(' • ')
 
                         return (
-                          <div key={a.id} className="p-4 hover:bg-neutral-800/50 transition-colors cursor-pointer">
+                          <div key={a.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3">
                                 <div className={`w-2 h-2 rounded-full ${dotClass}`}></div>
                                 <div>
-                                  <p className="text-white text-sm font-medium">{action}</p>
-                                  <p className="text-neutral-400 text-xs">{detail}</p>
+                                  <p className="text-foreground text-sm font-medium">{action}</p>
+                                  <p className="text-muted-foreground text-xs">{detail}</p>
                                 </div>
                               </div>
-                              <span className="text-neutral-500 text-xs">{formatRelativeTime(a.created_at)}</span>
+                              <span className="text-muted-foreground text-xs">{formatRelativeTime(a.created_at)}</span>
                             </div>
                           </div>
                         )
@@ -729,18 +732,18 @@ export default function DashboardPage() {
             {activeSection === "apikeys" && (
               <div>
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-white mb-2">API Key Management</h1>
-                  <p className="text-neutral-400">Create and manage your API keys for authentication.</p>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">API Key Management</h1>
+                  <p className="text-muted-foreground">Create and manage your API keys for authentication.</p>
                 </div>
 
-                <Card className="bg-neutral-900 border-neutral-800 mb-6">
+                <Card className="bg-card border-border mb-6">
                   <CardHeader>
-                    <CardTitle className="text-white">Generate New API Key</CardTitle>
+                    <CardTitle className="text-foreground">Generate New API Key</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleGenerateAPIKey} className="space-y-4">
                       <div>
-                        <Label htmlFor="apiKeyName" className="text-neutral-300">
+                        <Label htmlFor="apiKeyName" className="text-foreground">
                           Key Name
                         </Label>
                         <Input
@@ -749,13 +752,13 @@ export default function DashboardPage() {
                           value={apiKeyName}
                           onChange={(e) => setApiKeyName(e.target.value)}
                           required
-                          className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                          className="mt-1 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                           placeholder="e.g., My Production Key"
                         />
                       </div>
                       <Button
                         type="submit"
-                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white cursor-pointer"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                         disabled={isGeneratingKey}
                       >
                         {isGeneratingKey ? (
@@ -773,14 +776,14 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {apiKeyError && (
-                      <div className="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-lg text-red-400 text-sm">
+                      <div className="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-lg text-destructive text-sm">
                         {apiKeyError}
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-neutral-900 border-neutral-800">
+                <Card className="bg-card border-border">
                   <CardContent className="p-0">
                     {/* Notifications moved to toasts */}
                     <div className="divide-y divide-neutral-800">
@@ -805,34 +808,34 @@ export default function DashboardPage() {
                         </div>
                       )}
                       {!apiKeysLoading && apiKeys.length === 0 && (
-                        <div className="p-6 text-neutral-400 text-sm">No API keys yet</div>
+                        <div className="p-6 text-muted-foreground text-sm">No API keys yet</div>
                       )}
                       {!apiKeysLoading && apiKeys.map((k) => (
-                        <div key={k.id} className="p-6 hover:bg-neutral-800/50 transition-colors">
+                        <div key={k.id} className="p-6 hover:bg-muted/50 transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center space-x-3 mb-2">
-                                <h3 className="text-white font-medium">{k.name}</h3>
+                                <h3 className="text-foreground font-medium">{k.name}</h3>
                                 <span className={`px-2 py-1 text-xs rounded-full ${
-                                  k.is_active ? 'bg-green-400/20 text-green-400' : 'bg-neutral-600/20 text-neutral-400'
+                                  k.is_active ? 'bg-green-400/20 text-green-400' : 'bg-neutral-600/20 text-muted-foreground'
                                 }`}>
                                   {k.is_active ? 'active' : 'inactive'}
                                 </span>
                               </div>
-                              <div className="flex items-center flex-wrap gap-4 text-sm text-neutral-400">
-                                <span className="font-mono bg-neutral-800 px-2 py-1 rounded">
+                              <div className="flex items-center flex-wrap gap-4 text-sm text-muted-foreground">
+                                <span className="font-mono bg-muted px-2 py-1 rounded">
                                   {k.prefix}...
                                 </span>
                                 <span>Created {formatRelativeTime(k.created_at)}</span>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Button onClick={() => copyToClipboard(k.prefix)} variant="ghost" size="sm" className="text-neutral-400 hover:text-white cursor-pointer">
+                              <Button onClick={() => copyToClipboard(k.prefix)} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground cursor-pointer">
                                 Copy Prefix
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="text-neutral-400 hover:text-red-400 cursor-pointer">
+                                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive cursor-pointer">
                                     Delete
                                   </Button>
                                 </AlertDialogTrigger>
@@ -862,48 +865,48 @@ export default function DashboardPage() {
             {activeSection === "settings" && (
               <div>
                 <div className="mb-8">
-                  <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
-                  <p className="text-neutral-400">Configure your account preferences and usage alerts.</p>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Settings</h1>
+                  <p className="text-muted-foreground">Configure your account preferences and usage alerts.</p>
                 </div>
 
                 <div className="grid gap-6">
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader>
-                      <CardTitle className="text-white">Usage Alerts</CardTitle>
-                      <p className="text-neutral-400 text-sm">Set limits and get notified about your usage</p>
+                      <CardTitle className="text-foreground">Usage Alerts</CardTitle>
+                      <p className="text-muted-foreground text-sm">Set limits and get notified about your usage</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-neutral-300">Daily limit alert</span>
+                        <span className="text-foreground">Daily limit alert</span>
                         <input
                           type="number"
                           placeholder="100 images"
-                          className="w-[120px] px-2 py-1 text-sm bg-neutral-800 border border-neutral-700 rounded text-white"
+                          className="w-[120px] px-2 py-1 text-sm bg-muted border border-input rounded text-foreground"
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-neutral-300">Monthly spend alert</span>
+                        <span className="text-foreground">Monthly spend alert</span>
                         <input
                           type="number"
                           placeholder="50 $"
-                          className="w-[70px] px-2 py-1 text-sm bg-neutral-800 border border-neutral-700 rounded text-white"
+                          className="w-[70px] px-2 py-1 text-sm bg-muted border border-input rounded text-foreground"
                         />
                       </div>
-                      <Button variant="outline" size="sm" className="w-full border-neutral-600 text-neutral-300 hover:bg-neutral-800 cursor-pointer">
+                      <Button variant="outline" size="sm" className="w-full border-input text-foreground hover:bg-muted cursor-pointer">
                         Save Settings
                       </Button>
                     </CardContent>
                   </Card>
-                  <Card className="bg-neutral-900 border-neutral-800">
+                  <Card className="bg-card border-border">
                     <CardHeader>
-                      <CardTitle className="text-white">Danger Zone</CardTitle>
-                      <p className="text-neutral-400 text-sm">This will permanently remove your data.</p>
+                      <CardTitle className="text-foreground">Danger Zone</CardTitle>
+                      <p className="text-muted-foreground text-sm">This will permanently remove your data.</p>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-neutral-300">Delete account</p>
-                          <p className="text-neutral-500 text-sm">Removes API keys, usage logs, and profile data.</p>
+                          <p className="text-foreground">Delete account</p>
+                          <p className="text-muted-foreground text-sm">Removes API keys, usage logs, and profile data.</p>
                         </div>
                         <AlertDialog onOpenChange={(open) => { if (!open) setDeleteConfirm("") }}>
                           <AlertDialogTrigger asChild>
@@ -913,7 +916,7 @@ export default function DashboardPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action deletes all your data. Type <span className="font-semibold text-white">DELETE</span> to confirm. This cannot be undone.
+                                This action deletes all your data. Type <span className="font-semibold text-foreground">DELETE</span> to confirm. This cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <div className="mt-2">
@@ -921,7 +924,7 @@ export default function DashboardPage() {
                                 value={deleteConfirm}
                                 onChange={(e) => setDeleteConfirm(e.target.value)}
                                 placeholder="Type DELETE to confirm"
-                                className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500"
+                                className="bg-muted border-input text-foreground placeholder:text-muted-foreground"
                               />
                             </div>
                             <AlertDialogFooter>

@@ -1,324 +1,475 @@
-"use client"
+"use client";
 
-import { useState, useCallback, useEffect, useRef } from "react"
-import { Schema } from "effect"
-import { ApiFailure } from "@openbg/contracts"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
-import { Upload, Download, Loader2, Sparkles, ArrowLeftRight } from "lucide-react"
-import { useDropzone } from "react-dropzone"
-import Link from "next/link"
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Match, Schema } from "effect";
+import { ApiFailure } from "@openbg/contracts";
+import {
+  ArrowRight,
+  Download,
+  Loader2,
+  Paperclip,
+  X,
+} from "lucide-react";
+import { useDropzone } from "react-dropzone";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { mediaOperations } from "@/lib/media-operations";
+import { readImageResponse } from "@/lib/image-response";
+import { apiFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { imageTransformBody, readTransformResponse, sourceImageFormat, type TransformOptions } from "@/lib/image-transform";
 
-export function BackgroundRemovalDemo() {
-  const [originalImage, setOriginalImage] = useState<string | null>(null)
-  const [processedImage, setProcessedImage] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [slider, setSlider] = useState(50)
-  const [dragging, setDragging] = useState(false)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null)
-  const frameRef = useRef<HTMLDivElement | null>(null)
-  const [boxSize, setBoxSize] = useState<{ w: number; h: number } | null>(null)
-  const [downloadName, setDownloadName] = useState("")
-  const [extension, setExtension] = useState("png")
-  const clamp = (v: number, min = 0, max = 100) => Math.max(min, Math.min(max, v))
+type ProcessingState =
+  | { status: "idle" }
+  | { status: "processing" }
+  | { status: "complete"; output: string; extension: "png" | "gif" | "jpeg" | "webp"; summary: string }
+  | { status: "failed"; message: string };
 
-  const startDragAtClientX = (clientX: number) => {
-    const el = containerRef.current
+export function ImageComparison({
+  original,
+  result,
+  label,
+  resultLabel = "Removed",
+}: {
+  original: string;
+  result: string;
+  label: string;
+  resultLabel?: string;
+}) {
+  const [position, setPosition] = useState(50);
+  const id = useId().replace(/:/g, "");
 
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const pct = ((clientX - rect.left) / rect.width) * 100
-    setSlider(clamp(pct))
-  }
+  return (
+    <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
+      <svg
+        viewBox="0 0 512 440"
+        role="img"
+        aria-label={label}
+        className="block aspect-[512/440] w-full"
+      >
+        <defs>
+          <pattern
+            id={`${id}-grid`}
+            width="24"
+            height="24"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="24" height="24" fill="#fafafa" />
+            <path d="M0 0H12V12H0ZM12 12H24V24H12Z" fill="#eaeaea" />
+          </pattern>
+          <clipPath id={`${id}-clip`}>
+            <rect width={(512 * position) / 100} height="440" />
+          </clipPath>
+        </defs>
+        <rect width="512" height="440" fill={`url(#${id}-grid)`} />
+        <image
+          href={result}
+          width="512"
+          height="440"
+          preserveAspectRatio="xMidYMid meet"
+        />
+        <image
+          href={original}
+          width="512"
+          height="440"
+          preserveAspectRatio="xMidYMid meet"
+          clipPath={`url(#${id}-clip)`}
+        />
+        <line
+          x1={(512 * position) / 100}
+          x2={(512 * position) / 100}
+          y1="0"
+          y2="440"
+          stroke="white"
+          strokeWidth="2"
+        />
+        <circle
+          cx={(512 * position) / 100}
+          cy="220"
+          r="18"
+          fill="white"
+          stroke="#e5e5e5"
+        />
+        <path
+          d={`M${(512 * position) / 100 - 4} 215l-5 5 5 5M${(512 * position) / 100 + 4} 215l5 5-5 5`}
+          fill="none"
+          stroke="#262626"
+          strokeWidth="1.5"
+        />
+      </svg>
+      <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-between text-xs">
+        <span className="rounded bg-card/90 px-2 py-1">Original</span>
+        <span className="rounded bg-card/90 px-2 py-1">{resultLabel}</span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={position}
+        onChange={(event) => setPosition(Number(event.target.value))}
+        aria-label={`Compare original and ${resultLabel.toLowerCase()} image`}
+        className="absolute inset-0 size-full cursor-ew-resize opacity-0 focus:opacity-100 focus:accent-primary"
+      />
+    </div>
+  );
+}
+
+export function BackgroundRemovalDemo({
+  initialTool = "remove",
+}: {
+  initialTool?: string;
+}) {
+  const selectedTool = mediaOperations.some(
+    (operation) => operation.id === initialTool,
+  )
+    ? initialTool
+    : "remove";
+
+  const [tool, setTool] = useState(selectedTool);
+  const [file, setFile] = useState<File | null>(null);
+  const [original, setOriginal] = useState<string | null>(null);
+  const [state, setState] = useState<ProcessingState>({ status: "idle" });
+  const [auth, setAuth] = useState<"loading" | "signed-in" | "signed-out">("loading");
+  const [format, setFormat] = useState<TransformOptions["format"]>("webp");
+  const [quality, setQuality] = useState<number | undefined>(undefined);
+  const [lossless, setLossless] = useState<boolean | undefined>(undefined);
+  const [compressionLevel, setCompressionLevel] = useState<number | undefined>(undefined);
+  const optionsId = useId();
+  const request = useRef<AbortController | null>(null);
+  const busy = state.status === "processing";
+  const transform = tool === "compress" || tool === "convert";
+  const outputFormat = tool === "compress" && file ? sourceImageFormat(file) : format;
 
   useEffect(() => {
-    if (!dragging) return
-    const onMove = (e: MouseEvent) => startDragAtClientX(e.clientX)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuth(session ? "signed-in" : "signed-out");
+    });
 
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches && e.touches[0]) startDragAtClientX(e.touches[0].clientX)
-    }
+    return () => subscription.unsubscribe();
+  }, []);
 
-    const stop = () => setDragging(false)
-    window.addEventListener("mousemove", onMove)
-    window.addEventListener("mouseup", stop)
-    window.addEventListener("touchmove", onTouchMove, { passive: false })
-    window.addEventListener("touchend", stop)
+  useEffect(() => () => request.current?.abort(), []);
+  useEffect(
+    () => () => {
+      if (original) URL.revokeObjectURL(original);
+    },
+    [original],
+  );
+  const output = state.status === "complete" ? state.output : null;
+  useEffect(
+    () => () => {
+      if (output) URL.revokeObjectURL(output);
+    },
+    [output],
+  );
 
-    return () => {
-      window.removeEventListener("mousemove", onMove)
-      window.removeEventListener("mouseup", stop)
-      window.removeEventListener("touchmove", onTouchMove)
-      window.removeEventListener("touchend", stop)
-    }
-  }, [dragging])
+  const onDrop = useCallback((files: File[]) => {
+    const nextFile = files[0];
 
-  // Measure image dimensions to set precise aspect ratio of the preview box
-  useEffect(() => {
-    const src = processedImage || originalImage
+    if (!nextFile) return;
+    setFile(nextFile);
+    setOriginal(URL.createObjectURL(nextFile));
+    setState({ status: "idle" });
+  }, []);
 
-    if (!src) return
-
-    const img = new Image()
-    img.onload = () => {
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        setImgDims({ w: img.naturalWidth, h: img.naturalHeight })
-      }
-    }
-
-    img.src = src
-  }, [originalImage, processedImage])
-
-  // Compute a box that fits viewport height (70vh) and available width while preserving aspect.
-  useEffect(() => {
-    const recompute = () => {
-      const frame = frameRef.current
-      const ratio = imgDims ? imgDims.w / imgDims.h : 4 / 3 // width/height
-
-      if (!frame) return
-      const availableW = frame.clientWidth
-      const maxH = Math.floor(window.innerHeight * 0.7)
-      let width = availableW
-      let height = Math.round(width / ratio)
-
-      if (height > maxH) {
-        height = maxH
-        width = Math.round(height * ratio)
-      }
-
-      setBoxSize({ w: width, h: height })
-    }
-
-    recompute()
-    window.addEventListener("resize", recompute)
-
-    return () => window.removeEventListener("resize", recompute)
-  }, [imgDims])
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0]
-
-    if (!file) return
-
-    const blobUrl = URL.createObjectURL(file)
-    setOriginalImage(blobUrl)
-    // Propose a default filename (without extension)
-    const base = file.name.replace(/\.[^.]+$/, "")
-    setDownloadName(base.slice(0, 64))
-    setProcessedImage(null)
-    setError(null)
-    setIsProcessing(true)
-    setProgress(4)
-    let tick: ReturnType<typeof setInterval> | undefined
-
-    try {
-      // Preserve source pixels and metadata; the worker handles model preprocessing.
-      const form = new FormData()
-      form.append("file", file)
-      form.append("format", "png")
-      form.append("quality", "auto")
-      tick = setInterval(() => {
-        // Ease towards 92% while waiting
-        setProgress((p) => (p < 92 ? Math.min(92, p + 2) : p))
-      }, 500)
-      const resp = await fetch("/api/trial/run", { method: "POST", body: form })
-
-      if (!resp.ok) {
-        if (resp.status === 413) throw new Error("This image exceeds the file-size limit. Choose a smaller file.")
-
-        const failure = await resp.json().then(Schema.decodeUnknownSync(ApiFailure))
-          .catch(() => ({ error: "Could not process this image. Please try again." }))
-
-        throw new Error(failure.error)
-      }
-
-      const ct = resp.headers.get("content-type") || ""
-
-      if (ct.startsWith("image/")) {
-        const blob = await resp.blob()
-        const url = URL.createObjectURL(blob)
-        setExtension(ct.startsWith("image/gif") ? "gif" : "png")
-        setProcessedImage(url)
-        setProgress(100)
-      } else {
-        throw new Error("The server did not return an image")
-      }
-    } catch (cause) {
-      setProcessedImage(null)
-      setError(cause instanceof Error ? cause.message : "Could not process this image. Please try again.")
-    } finally {
-      clearInterval(tick)
-      setIsProcessing(false)
-      setTimeout(() => setProgress(0), 800)
-    }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
-      "image/*": [".jpeg", ".jpg", ".png", ".webp"],
+      "image/png": [".png"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/webp": [".webp"],
     },
     multiple: false,
     maxSize: 10 * 1024 * 1024,
-    onDropRejected: () => setError("Choose a JPEG, PNG, or WebP image up to 10 MB."),
-  })
+    disabled: busy,
+    noClick: true,
+    noKeyboard: true,
+    onDropRejected: () =>
+      setState({
+        status: "failed",
+        message: "Choose a PNG, JPEG, or WebP image up to 10 MiB.",
+      }),
+  });
 
-  const handleDownload = () => {
-    if (!processedImage) return
-    const sanitize = (s: string) => s.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-_]/g, "") || "image"
-    const name = sanitize(downloadName || "result") + "-removed." + extension
-    const anchor = document.createElement("a")
-    anchor.href = processedImage
-    anchor.download = name
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
+  async function processImage() {
+    if (!file || busy || request.current || (transform && auth !== "signed-in")) return;
+
+    if (tool !== "remove" && !transform) return;
+
+    const controller = new AbortController();
+    request.current = controller;
+    setState({ status: "processing" });
+
+    try {
+      if (transform) {
+        const operation = tool === "compress" ? "compress-image" : "convert-image";
+        const body = await imageTransformBody(file, { operation, format, quality, lossless, compressionLevel });
+
+        const response = await apiFetch(`/api/v1/${operation}`, {
+          method: "POST", headers: { "Content-Type": "application/json", Accept: "image/*" },
+          body, signal: controller.signal,
+        });
+
+        const { blob, extension, metadata } = await readTransformResponse(response, operation);
+
+        if (controller.signal.aborted) return;
+
+        const sizes = `${formatBytes(metadata.input_bytes)} → ${formatBytes(metadata.output_bytes)}`;
+
+        const change = metadata.bytes_saved >= 0
+          ? `${Math.round(metadata.bytes_saved / metadata.input_bytes * 100)}% smaller`
+          : `${Math.round(-metadata.bytes_saved / metadata.input_bytes * 100)}% larger`;
+
+        setState({
+          status: "complete", output: URL.createObjectURL(blob), extension,
+          summary: metadata.retained_original
+            ? `${sizes} · Original kept: no smaller result at these settings.`
+            : `${sizes} · ${change}`,
+        });
+
+        return;
+      }
+
+      // Preserve full source bytes. The shared API owns model preprocessing.
+      const form = new FormData();
+      form.append("file", file);
+      form.append("format", "png");
+      form.append("quality", "auto");
+
+      const response = await fetch("/api/trial/run", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        if (response.status === 413)
+          throw new Error(
+            "This image exceeds the file-size limit. Choose a smaller file.",
+          );
+
+        const failure = await response
+          .json()
+          .then(Schema.decodeUnknownSync(ApiFailure))
+          .catch(() => ({
+            error: "Could not process this image. Please try again.",
+          }));
+
+        throw new Error(failure.error);
+      }
+
+      if (!response.headers.get("content-type")?.startsWith("image/"))
+        throw new Error("The server did not return an image.");
+      const blob = await readImageResponse(response);
+
+      if (controller.signal.aborted) return;
+      setState({ status: "complete", output: URL.createObjectURL(blob), extension: blob.type === "image/gif" ? "gif" : "png", summary: `${formatBytes(file.size)} → ${formatBytes(blob.size)}` });
+    } catch (cause) {
+      if (controller.signal.aborted) return;
+      setState({
+        status: "failed",
+        message:
+          cause instanceof Error
+            ? cause.message
+            : "Could not process this image. Please try again.",
+      });
+    } finally {
+      if (request.current === controller) request.current = null;
+    }
   }
 
+  function reset() {
+    setFile(null);
+    setOriginal(null);
+    setState({ status: "idle" });
+  }
+
+  const operation =
+    mediaOperations.find((item) => item.id === tool) ?? mediaOperations[0];
+
+  const resultLabel = Match.value(tool).pipe(
+    Match.when("compress", () => "Compressed"),
+    Match.when("convert", () => "Converted"),
+    Match.orElse(() => "Removed"),
+  );
+
   return (
-    <div className="max-w-6xl mx-auto">
-      {error && <p role="alert" className="mb-4 text-sm text-red-400">{error}</p>}
-      {!originalImage ? (
-        <Card className="border-2 border-dashed border-neutral-700 hover:border-orange-500/50 transition-all duration-300 bg-neutral-900 shadow-xl hover:shadow-2xl hover:scale-105 group">
-          <CardContent className="p-6 sm:p-8 lg:p-12">
-            <div {...getRootProps()} className="text-center cursor-pointer">
-              <input {...getInputProps()} />
-              <div className="relative mb-4 sm:mb-6">
-                <Upload className="w-8 sm:w-10 lg:w-12 h-8 sm:h-10 lg:h-12 text-neutral-500 mx-auto group-hover:text-orange-400 transition-all duration-300 group-hover:scale-110" />
-                <Sparkles className="w-3 sm:w-4 h-3 sm:h-4 text-orange-400 absolute -top-1 -right-1 animate-pulse group-hover:scale-125 transition-transform duration-300" />
-              </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 group-hover:text-orange-100 transition-colors duration-300">
-                {isDragActive ? "Drop your image here" : "Upload an image to test"}
-              </h3>
-              <p className="text-sm sm:text-base text-neutral-400 mb-4 sm:mb-6 leading-relaxed group-hover:text-neutral-300 transition-colors duration-300 px-2 sm:px-0">
-                Drag and drop an image, or click to select. See the magic happen in seconds.
-              </p>
-              <Button className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-300 cursor-pointer">
-                Choose Image
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="bg-neutral-900 border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 group">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 sm:mb-4">
+    <div className="w-full">
+      <Tabs value={tool} onValueChange={(value) => { setTool(value); setState({ status: "idle" }); }} className="gap-0">
+        <div
+          {...getRootProps()}
+          className="overflow-hidden rounded-3xl border border-border bg-card shadow-[0_16px_40px_-20px_rgba(0,0,0,0.2)] transition-shadow"
+        >
+          <input {...getInputProps()} aria-label="Upload image" />
+          <div className="px-5 pt-6 pb-5 sm:px-6">
+            {file && original ? (
               <div className="flex items-center gap-3">
-                <h3 className="text-base sm:text-lg font-semibold text-white group-hover:text-orange-100 transition-colors duration-300">Preview</h3>
-                <span className="hidden sm:inline text-xs sm:text-sm text-neutral-400">Drag to compare</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">File name:</span>
-                <Input
-                  value={downloadName}
-                  onChange={(e) => setDownloadName(e.target.value)}
-                  placeholder="my-image"
-                  className="h-8 w-40 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                <img
+                  src={original}
+                  alt="Selected image"
+                  className="size-14 rounded-lg border border-border object-cover"
                 />
-              </div>
-            </div>
-
-            <div ref={frameRef} className="w-full flex justify-center">
-            <div
-              ref={containerRef}
-              className="relative w-full rounded-lg overflow-hidden bg-neutral-800 group-hover:ring-2 group-hover:ring-orange-500/20 transition-all duration-300"
-              style={{
-                width: boxSize ? `${boxSize.w}px` : "100%",
-                height: boxSize ? `${boxSize.h}px` : undefined,
-                backgroundImage:
-                  "linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%)," +
-                  "linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%)," +
-                  "linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%)," +
-                  "linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%)",
-                backgroundSize: "20px 20px",
-                backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-              }}
-              onMouseDown={(e) => {
-                setDragging(true)
-                startDragAtClientX(e.clientX)
-              }}
-              onTouchStart={(e) => {
-                setDragging(true)
-
-                if (e.touches && e.touches[0]) startDragAtClientX(e.touches[0].clientX)
-              }}
-            >
-              {isProcessing ? (
-                <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <div className="text-center max-w-xs w-full">
-                    <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto mb-3" />
-                    <p className="text-sm text-neutral-300">Preparing preview…</p>
-                    <p className="text-xs text-neutral-500 mt-1">Larger images and the first request after a pause can take longer.</p>
-                    <div className="mt-4">
-                      <Progress value={progress} />
-                    </div>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{file.name}</p>
                 </div>
-              ) : (
-                <>
-                  {/* Base: processed image covers full container */}
-                  <img
-                    src={processedImage || originalImage || "/placeholder.svg"}
-                    alt="Processed"
-                    className="absolute inset-0 w-full h-full object-contain"
-                    style={{ zIndex: 1 }}
-                  />
-                  {/* Overlay: original image clipped to left side by slider */}
-                  <img
-                    src={originalImage || "/placeholder.svg"}
-                    alt="Original"
-                    className="absolute inset-0 w-full h-full object-contain"
-                    style={{
-                      zIndex: 2,
-                      clipPath: `polygon(0 0, ${slider}% 0, ${slider}% 100%, 0 100%)`,
-                      WebkitClipPath: `polygon(0 0, ${slider}% 0, ${slider}% 100%, 0 100%)`,
-                    }}
-                  />
-                  {/* Divider handle */}
-                  <div
-                    className="absolute top-0 bottom-0 flex flex-col items-center cursor-col-resize select-none"
-                    style={{ left: `${slider}%`, transform: "translateX(-50%)", zIndex: 3 }}
-                  >
-                    <div className="h-full w-px bg-white/70"></div>
-                    <div className="absolute top-1/2 -translate-y-1/2 bg-white text-black rounded-full shadow-lg border border-black/10 w-9 h-9 flex items-center justify-center">
-                      <ArrowLeftRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={reset}
+                  disabled={busy}
+                  aria-label="Remove selected image"
+                >
+                  <X />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={open}
+                className="flex min-h-16 w-full items-start gap-3 text-left text-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
+              >
+                <Paperclip className="mt-1 size-5 shrink-0 text-muted-foreground/60" />
+                <span>
+                  {isDragActive
+                    ? "Drop your image here"
+                    : "Drop an image. Make it ready for anything."}
+                </span>
+              </button>
+            )}
+          </div>
+          {transform && (
+            <fieldset disabled={busy} className="space-y-4 border-t border-border px-5 py-4 text-sm sm:px-6">
+              <legend className="sr-only">{operation.name} settings</legend>
+              {tool === "convert" ? (
+                <div className="flex items-center justify-between gap-4">
+                  <label htmlFor={`${optionsId}-format`}>Output format</label>
+                  <select id={`${optionsId}-format`} value={format} onChange={(event) => {
+                    const value = event.target.value;
 
-            {error && !isProcessing && (
-              <Button variant="outline" className="mt-4" onClick={() => { setOriginalImage(null); setError(null) }}>
-                Choose another image
+                    if (value === "jpeg" || value === "png" || value === "webp") setFormat(value);
+                    setState({ status: "idle" });
+                  }} className="rounded-lg border border-input bg-background px-3 py-2">
+                    <option value="jpeg">JPEG</option>
+                    <option value="png">PNG</option>
+                    <option value="webp">WebP</option>
+                  </select>
+                </div>
+              ) : <p className="text-muted-foreground">Keep the original format. Return the original if it is already smaller.</p>}
+              {tool === "convert" && outputFormat === "jpeg" && <p className="text-xs text-muted-foreground">Transparent areas become white in JPEG.</p>}
+              <details className="group">
+                <summary className="cursor-pointer font-medium">Advanced settings</summary>
+                <div className="mt-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">Leave settings blank to use recommended defaults. Overrides stay active when this section is closed.</p>
+                  {(file || tool === "convert") ? (
+                    <>
+                      {outputFormat === "webp" && (
+                        <div className="flex items-center justify-between gap-4">
+                          <label htmlFor={`${optionsId}-lossless`}>WebP encoding</label>
+                          <select id={`${optionsId}-lossless`} value={lossless === undefined ? "" : String(lossless)} onChange={(event) => {
+                            setLossless(event.target.value === "" ? undefined : event.target.value === "true");
+                            setState({ status: "idle" });
+                          }} className="rounded-lg border border-input bg-background px-3 py-2">
+                            <option value="">Recommended</option>
+                            <option value="false">Lossy</option>
+                            <option value="true">Lossless</option>
+                          </select>
+                        </div>
+                      )}
+                      {outputFormat === "png" ? (
+                        <div className="space-y-2">
+                          <label htmlFor={`${optionsId}-compression`} className="block">PNG compression level (0–9)</label>
+                          <input id={`${optionsId}-compression`} type="number" min="0" max="9" step="1" value={compressionLevel ?? ""} placeholder="Recommended" onChange={(event) => { setCompressionLevel(event.target.value === "" ? undefined : Number(event.target.value)); setState({ status: "idle" }); }} className="w-full rounded-lg border border-input bg-background px-3 py-2" />
+                          <p className="text-xs text-muted-foreground">Lossless. Higher levels take longer and may produce smaller files.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label htmlFor={`${optionsId}-quality`} className="block">{outputFormat === "webp" && lossless ? "Compression effort" : "Quality"} (1–100)</label>
+                          <input id={`${optionsId}-quality`} type="number" min="1" max="100" step="1" value={quality ?? ""} placeholder="Recommended" onChange={(event) => { setQuality(event.target.value === "" ? undefined : Number(event.target.value)); setState({ status: "idle" }); }} className="w-full rounded-lg border border-input bg-background px-3 py-2" />
+                          <p className="text-xs text-muted-foreground">{outputFormat === "webp" && lossless ? "Higher effort takes longer and may produce smaller files without changing pixel quality." : "Lower quality usually means a smaller file."}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : <p className="text-xs text-muted-foreground">Choose an image to see settings for its format.</p>}
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setQuality(undefined);
+                    setLossless(undefined);
+                    setCompressionLevel(undefined);
+                    setState({ status: "idle" });
+                  }}>Reset to recommended</Button>
+                </div>
+              </details>
+              <p className="text-xs text-muted-foreground">Static JPEG, PNG, or WebP · Up to 10 MiB and 25 megapixels · 1 credit per successful operation, including an unchanged result.</p>
+              {auth === "loading" && <p role="status" className="text-muted-foreground">Checking sign-in…</p>}
+              {auth === "signed-out" && (
+                <p className="text-muted-foreground">
+                  <a href="/login" target="_blank" rel="noopener" className="font-medium text-primary underline underline-offset-4">Sign in</a> or <a href="/signup" target="_blank" rel="noopener" className="font-medium text-primary underline underline-offset-4">create an account</a> to {tool} images. Opens a new tab so your selected image stays here.
+                </p>
+              )}
+            </fieldset>
+          )}
+          <div className="flex items-center gap-2 border-t border-border p-3">
+            <TooltipProvider delayDuration={180}>
+              <TabsList className="h-11 min-w-0 flex-1 justify-start gap-0 overflow-x-auto rounded-xl bg-muted/70 p-1 [scrollbar-width:none]">
+                {mediaOperations.map(item => (
+                  <Tooltip key={item.id}>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value={item.id} data-state={tool === item.id ? "active" : "inactive"} disabled={busy} className="h-9 min-w-16 shrink-0 flex-none gap-1.5 rounded-lg px-2 text-xs sm:flex-1 text-muted-foreground sm:text-sm data-[state=active]:text-foreground border-0 data-[state=active]:bg-card dark:data-[state=active]:bg-card focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none [&[data-state=active]>svg]:text-primary">
+                        <item.icon className="hidden size-4 sm:block" />
+                        {item.short}
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start">
+                      {item.description}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TabsList>
+            </TooltipProvider>
+            {output ? (
+              <Button asChild size="icon" className="size-11 rounded-xl sm:w-15">
+                <a href={output} download={`${file?.name.replace(/\.[^.]+$/, "") || "image"}-${resultLabel.toLowerCase()}.${state.status === "complete" ? state.extension : "png"}`} aria-label="Download image"><Download className="size-5" /></a>
+              </Button>
+            ) : (
+              <Button size="icon" onClick={() => file ? void processImage() : open()} disabled={busy || !operation.available || (Boolean(file) && transform && auth !== "signed-in")} aria-label={busy ? "Processing image" : operation.available ? operation.name : `${operation.name} coming soon`} className="size-11 rounded-xl sm:w-15">
+                {busy ? <Loader2 className="size-5 animate-spin motion-reduce:animate-none" /> : <ArrowRight className="size-5" />}
               </Button>
             )}
-
-            {processedImage && !isProcessing && (
-              <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                <Button onClick={handleDownload} className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-300 group text-sm sm:text-base cursor-pointer">
-                  <Download className="w-3 sm:w-4 h-3 sm:h-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
-                  Download PNG
-                </Button>
-                <Link href="/signup" className="flex-1">
-                  <Button
-                    variant="outline"
-                    className="w-full border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors duration-300 text-sm sm:text-base cursor-pointer"
-                  >
-                    Try Another
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </Tabs>
+      {busy && <p role="status" className="mt-4 text-sm text-muted-foreground">Processing your image…</p>}
+      {!operation.available && <p className="mt-4 text-sm text-muted-foreground">{operation.name} is coming soon. Try background removal, compression, or conversion.</p>}
+      {state.status === "failed" && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      )}
+      {original && output && (
+        <div className="mt-6 rounded-2xl border border-border bg-card p-3">
+          <div className="mb-3 flex items-center justify-between px-1 text-xs text-muted-foreground">
+            <span>Your result</span>
+            <span>Drag to compare</span>
+          </div>
+          <ImageComparison
+            original={original}
+            result={output}
+            label={`Image before and after ${operation.name.toLowerCase()}`}
+            resultLabel={resultLabel}
+          />
+          <p role="status" className="mt-3 px-1 text-sm text-muted-foreground">{state.status === "complete" ? state.summary : ""}</p>
+        </div>
       )}
     </div>
-  )
+  );
+}
+
+function formatBytes(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(2)} MiB` : `${(bytes / 1024).toFixed(1)} KiB`;
 }

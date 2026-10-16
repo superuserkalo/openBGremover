@@ -41,20 +41,20 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-neutral-900 border-neutral-800 shadow-xl">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card border-border shadow-xl">
           <CardContent className="text-center p-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
-              <Mail className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
+              <Mail className="w-8 h-8 text-foreground" />
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-white tracking-[-0.01em] leading-[1.12]">Check your email</h2>
-            <p className="text-neutral-400 mb-6 leading-[1.65] tracking-[0.01em]">
-              We've sent a password reset link to <span className="text-white font-medium">{email}</span>
+            <h2 className="text-2xl font-bold mb-4 text-foreground tracking-[-0.01em] leading-[1.12]">Check your email</h2>
+            <p className="text-muted-foreground mb-6 leading-[1.65] tracking-[0.01em]">
+              We've sent a password reset link to <span className="text-foreground font-medium">{email}</span>
             </p>
             <Link href="/login">
               <Button
                 variant="outline"
-                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer tracking-[0.02em]"
+                className="border-input text-foreground hover:bg-muted hover:border-ring hover:text-foreground cursor-pointer tracking-[0.02em]"
               >
                 Back to login
               </Button>
@@ -66,23 +66,23 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/login" className="inline-flex items-center space-x-2 text-neutral-400 hover:text-white mb-6 cursor-pointer">
+          <Link href="/login" className="inline-flex items-center space-x-2 text-muted-foreground hover:text-foreground mb-6 cursor-pointer">
             <ArrowLeft className="w-4 h-4" />
             <span>Back to login</span>
           </Link>
 
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Reset your password</h1>
-          <p className="text-neutral-400 tracking-[0.01em]">Enter your email to receive a reset link</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2 tracking-[-0.01em] leading-[1.12]">Reset your password</h1>
+          <p className="text-muted-foreground tracking-[0.01em]">Enter your email to receive a reset link</p>
         </div>
 
-        <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
+        <Card className="bg-card border-border shadow-xl">
           <CardContent className="p-8">
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-neutral-300">
+                <Label htmlFor="email" className="text-foreground">
                   Email address
                 </Label>
                 <Input
@@ -91,18 +91,18 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                  className="mt-1 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                   placeholder="you@example.com"
                 />
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
+                <div className="text-destructive text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (

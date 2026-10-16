@@ -88,23 +88,23 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-neutral-900 border-neutral-800 shadow-xl">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card border-border shadow-xl">
           <CardContent className="text-center p-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
-              <Mail className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/25">
+              <Mail className="w-8 h-8 text-foreground" />
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-white tracking-[-0.01em] leading-[1.12]">Check your email</h2>
-            <p className="text-neutral-400 mb-6 leading-[1.65] tracking-[0.01em]">
-              We've sent you a confirmation link at <span className="text-white font-medium">{email}</span>
+            <h2 className="text-2xl font-bold mb-4 text-foreground tracking-[-0.01em] leading-[1.12]">Check your email</h2>
+            <p className="text-muted-foreground mb-6 leading-[1.65] tracking-[0.01em]">
+              We've sent you a confirmation link at <span className="text-foreground font-medium">{email}</span>
             </p>
-            <p className="text-sm text-neutral-500 mb-6 tracking-[0.02em]">
+            <p className="text-sm text-muted-foreground mb-6 tracking-[0.02em]">
               Click the link in the email to complete your account setup and get started.
             </p>
             <Link href="/login">
               <Button
                 variant="outline"
-                className="border-neutral-600 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-500 hover:text-white cursor-pointer tracking-[0.02em]"
+                className="border-input text-foreground hover:bg-muted hover:border-ring hover:text-foreground cursor-pointer tracking-[0.02em]"
               >
                 Back to login
               </Button>
@@ -116,26 +116,26 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 text-neutral-400 hover:text-white mb-6 cursor-pointer">
+          <Link href="/" className="inline-flex items-center space-x-2 text-muted-foreground hover:text-foreground mb-6 cursor-pointer">
             <ArrowLeft className="w-4 h-4" />
             <span>Back to home</span>
           </Link>
 
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Create your account</h1>
-          <p className="text-neutral-400 tracking-[0.01em]">Start removing backgrounds today</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2 tracking-[-0.01em] leading-[1.12]">Create your account</h1>
+          <p className="text-muted-foreground tracking-[0.01em]">Your media workflow starts here</p>
         </div>
 
-        <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
+        <Card className="bg-card border-border shadow-xl">
           <CardContent className="p-8">
             {/* GitHub Sign Up */}
             <Button
               onClick={handleGithubSignup}
               disabled={isGithubLoading}
-              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer tracking-[0.02em]"
+              className="w-full mb-6 bg-muted hover:bg-border text-foreground border border-input hover:border-input transition-all duration-200 cursor-pointer tracking-[0.02em]"
             >
               {isGithubLoading ? (
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
@@ -146,16 +146,16 @@ export default function SignupPage() {
             </Button>
 
             <div className="relative mb-6">
-              <Separator className="bg-neutral-700" />
+              <Separator className="bg-border" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-neutral-900 px-3 text-sm text-neutral-400 tracking-[0.02em]">or</span>
+                <span className="bg-card px-3 text-sm text-muted-foreground tracking-[0.02em]">or</span>
               </div>
             </div>
 
             {/* Email Sign Up */}
             <form onSubmit={handleEmailSignup} className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-neutral-300">
+                <Label htmlFor="email" className="text-foreground">
                   Email address
                 </Label>
                 <Input
@@ -164,12 +164,12 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                  className="mt-1 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                   placeholder="you@example.com"
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="text-neutral-300">
+                <Label htmlFor="password" className="text-foreground">
                   Password
                 </Label>
                 <div className="mt-1 relative">
@@ -179,21 +179,21 @@ export default function SignupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                    className="pr-10 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                     placeholder="At least 6 characters"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-white"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               <div>
-                <Label htmlFor="confirmPassword" className="text-neutral-300">
+                <Label htmlFor="confirmPassword" className="text-foreground">
                   Confirm password
                 </Label>
                 <div className="mt-1 relative">
@@ -203,27 +203,27 @@ export default function SignupPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                    className="pr-10 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                     placeholder="Confirm your password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm((v) => !v)}
                     aria-label={showConfirm ? "Hide password" : "Show password"}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-white"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
+                <div className="text-destructive text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -234,21 +234,21 @@ export default function SignupPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-neutral-400 tracking-[0.01em]">
+              <p className="text-muted-foreground tracking-[0.01em]">
                 Already have an account?{" "}
-                <Link href="/login" className="text-orange-400 hover:text-orange-300 font-medium cursor-pointer">
+                <Link href="/login" className="text-primary hover:text-primary font-medium cursor-pointer">
                   Sign in
                 </Link>
               </p>
             </div>
 
-            <div className="mt-6 text-xs text-neutral-500 text-center tracking-[0.02em]">
+            <div className="mt-6 text-xs text-muted-foreground text-center tracking-[0.02em]">
               By creating an account, you agree to our{" "}
-              <Link href="/terms" className="text-orange-400 hover:text-orange-300 cursor-pointer">
+              <Link href="/terms" className="text-primary hover:text-primary cursor-pointer">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="text-orange-400 hover:text-orange-300 cursor-pointer">
+              <Link href="/privacy" className="text-primary hover:text-primary cursor-pointer">
                 Privacy Policy
               </Link>
             </div>

@@ -69,26 +69,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2 text-neutral-400 hover:text-white mb-6 cursor-pointer">
+          <Link href="/" className="inline-flex items-center space-x-2 text-muted-foreground hover:text-foreground mb-6 cursor-pointer">
             <ArrowLeft className="w-4 h-4" />
             <span>Back to home</span>
           </Link>
 
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-[-0.01em] leading-[1.12]">Welcome back</h1>
-          <p className="text-neutral-400 tracking-[0.01em]">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2 tracking-[-0.01em] leading-[1.12]">Welcome back</h1>
+          <p className="text-muted-foreground tracking-[0.01em]">Sign in to your account</p>
         </div>
 
-        <Card className="bg-neutral-900 border-neutral-800 shadow-xl">
+        <Card className="bg-card border-border shadow-xl">
           <CardContent className="p-8">
             {/* GitHub Sign In */}
             <Button
               onClick={handleGithubLogin}
               disabled={isGithubLoading}
-              className="w-full mb-6 bg-neutral-800 hover:bg-neutral-700 text-white border border-neutral-700 hover:border-neutral-600 transition-all duration-200 cursor-pointer tracking-[0.02em]"
+              className="w-full mb-6 bg-muted hover:bg-border text-foreground border border-input hover:border-input transition-all duration-200 cursor-pointer tracking-[0.02em]"
             >
               {isGithubLoading ? (
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
@@ -99,16 +99,16 @@ export default function LoginPage() {
             </Button>
 
             <div className="relative mb-6">
-              <Separator className="bg-neutral-700" />
+              <Separator className="bg-border" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="bg-neutral-900 px-3 text-sm text-neutral-400 tracking-[0.02em]">or</span>
+                <span className="bg-card px-3 text-sm text-muted-foreground tracking-[0.02em]">or</span>
               </div>
             </div>
 
             {/* Email Sign In */}
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-neutral-300">
+                <Label htmlFor="email" className="text-foreground">
                   Email address
                 </Label>
                 <Input
@@ -117,12 +117,12 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                  className="mt-1 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                   placeholder="you@example.com"
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="text-neutral-300">
+                <Label htmlFor="password" className="text-foreground">
                   Password
                 </Label>
                 <div className="mt-1 relative">
@@ -132,27 +132,27 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-orange-500 focus:ring-orange-500/20"
+                    className="pr-10 bg-muted border-input text-foreground placeholder:text-muted-foreground focus:border-orange-500 focus:ring-orange-500/20"
                     placeholder="Your password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-white"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               {error && (
-                <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
+                <div className="text-destructive text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3 tracking-[0.01em]">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white transition-colors duration-200 cursor-pointer tracking-[0.02em]"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground transition-colors duration-200 cursor-pointer tracking-[0.02em]"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -163,15 +163,15 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <Link href="/forgot-password" className="text-sm text-orange-400 hover:text-orange-300 cursor-pointer tracking-[0.02em]">
+              <Link href="/forgot-password" className="text-sm text-primary hover:text-primary cursor-pointer tracking-[0.02em]">
                 Forgot your password?
               </Link>
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-neutral-400 tracking-[0.01em]">
+              <p className="text-muted-foreground tracking-[0.01em]">
                 Don't have an account?{" "}
-                <Link href="/signup" className="text-orange-400 hover:text-orange-300 font-medium cursor-pointer">
+                <Link href="/signup" className="text-primary hover:text-primary font-medium cursor-pointer">
                   Sign up
                 </Link>
               </p>

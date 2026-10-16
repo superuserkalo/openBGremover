@@ -6,7 +6,7 @@ export function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : "The request could not be completed";
 }
 
-export async function apiRequest<A>(path: string, schema: Schema.Codec<A>, init: RequestInit = {}): Promise<A> {
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const base = process.env.NEXT_PUBLIC_API_URL;
 
   if (!base) throw new Error("NEXT_PUBLIC_API_URL is not configured");
@@ -18,8 +18,6 @@ export async function apiRequest<A>(path: string, schema: Schema.Codec<A>, init:
   const headers = new Headers(init.headers);
 
   headers.set("Authorization", `Bearer ${session.access_token}`);
-
-  if (init.body) headers.set("Content-Type", "application/json");
 
   const response = await fetch(`${base.replace(/\/$/, "")}${path}`, { ...init, headers });
 
@@ -34,6 +32,16 @@ export async function apiRequest<A>(path: string, schema: Schema.Codec<A>, init:
 
     throw new Error(message);
   }
+
+  return response;
+}
+
+export async function apiRequest<A>(path: string, schema: Schema.Codec<A>, init: RequestInit = {}): Promise<A> {
+  const headers = new Headers(init.headers);
+
+  if (init.body) headers.set("Content-Type", "application/json");
+
+  const response = await apiFetch(path, { ...init, headers });
 
   return Schema.decodeUnknownSync(schema)(await response.json());
 }

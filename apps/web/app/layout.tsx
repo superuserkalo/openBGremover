@@ -18,12 +18,12 @@ export const metadata: Metadata = {
     default: "openBGremover - AI Background Removal API",
     template: "%s | openBGremover"
   },
-  description: "Enterprise-grade AI background removal API at fair prices. Open source alternative with transparent pricing and no subscriptions.",
+  description: "Remove image backgrounds through one authenticated API. Try the playground and build image processing into your app.",
   keywords: ["background removal API", "AI background removal", "remove.bg alternative"],
 
   openGraph: {
     title: "openBGremover - AI Background Removal API",
-    description: "Enterprise-grade AI background removal at fair prices. Open source with transparent pricing.",
+    description: "Background removal for your apps and agents. Try an image in the playground.",
     type: "website",
   },
 };
@@ -35,9 +35,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans bg-background text-foreground antialiased selection:bg-primary/15`}>
         {children}
-        <Toaster position="bottom-right" theme="dark" richColors closeButton />
+        <Toaster position="bottom-right" theme="light" richColors closeButton />
       </body>
     </html>
   );
