@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { ImageMetadata, RemoveBackgroundRequest, WorkerFileDelivery, type RemoveBackgroundResponse } from "@openbg/contracts";
+import { ImageMetadata, RemoveBackgroundRequest, WorkerFileDelivery, type RemoveBackgroundResponse, type ImageTransformJob } from "@openbg/contracts";
 import { ApiError, attempt } from "./errors";
 import { readBytes, readText } from "./body";
 import type { Database } from "./database";
@@ -45,7 +45,7 @@ export function imageBytes(encoded: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-function imageFormat(prefix: string) {
+export function imageFormat(prefix: string) {
   if (prefix.startsWith("\x89PNG\r\n\x1a\n")) return "png";
 
   if (prefix.startsWith("\xff\xd8\xff")) return "jpeg";
@@ -57,7 +57,7 @@ function imageFormat(prefix: string) {
   throw new Error("Unsupported image");
 }
 
-function decodeImageData(input: string, maximum = 14 * 1024 * 1024): string {
+export function decodeImageData(input: string, maximum = 14 * 1024 * 1024): string {
   const data = input.replace(/^data:image\/[\w.+-]+;base64,/, "");
 
   if (!data || data.length > maximum || !/^[A-Za-z0-9+/]+={0,2}$/.test(data) || data.length % 4 !== 0) {
@@ -108,8 +108,27 @@ export function decodeImageRequest(text: string): RemoveBackgroundRequest {
   }
 }
 
+interface BackgroundWorkerRequest {
+  image: string;
+  format: string;
+  quality: string;
+  return_mask: boolean;
+  resize: RemoveBackgroundRequest["resize_options"];
+  response_format: "file";
+}
+
 export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fetch) {
-  return async (request: RemoveBackgroundRequest): Promise<ProcessedImage> => {
+  const process = createWorkerProcessor(config, fetcher);
+
+  return (request: RemoveBackgroundRequest) => process({
+    image: request.image_data, format: request.format ?? "png", quality: request.quality ?? "auto",
+    return_mask: request.return_mask ?? false, resize: request.resize_options, response_format: "file",
+  }, request.return_mask ?? false);
+}
+
+/** Shared bounded transport for the GPU and CPU image workers. No automatic retries. */
+export function createWorkerProcessor(config: MediaConfig, fetcher: typeof fetch = fetch) {
+  return async (payload: BackgroundWorkerRequest | ImageTransformJob, requireMask = false): Promise<ProcessedImage> => {
     const started = performance.now();
     const signal = AbortSignal.timeout(180_000);
     let response: Response;
@@ -118,11 +137,7 @@ export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fet
       response = await fetcher(config.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
-        body: JSON.stringify({
-          image: request.image_data, format: request.format ?? "png", quality: request.quality ?? "auto",
-          return_mask: request.return_mask ?? false, resize: request.resize_options,
-          response_format: "file",
-        }),
+        body: JSON.stringify(payload),
         signal,
         redirect: "manual",
       });
@@ -131,6 +146,12 @@ export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fet
     }
 
     if (!response.ok) {
+      if ("operation" in payload && (response.status === 400 || response.status === 413)) {
+        await response.body?.cancel();
+        throw new ApiError({ code: "INVALID_IMAGE", message: "Use a valid static JPEG, PNG, or WebP image within the 25-megapixel and output-size limits", status: response.status });
+      }
+
+      console.error("image_worker_http_failure", { status: response.status });
       await response.body?.cancel();
       throw new ApiError({ code: "PROCESSING_FAILED", message: "The image worker could not process this image", status: 502 });
     }
@@ -169,7 +190,7 @@ export function createProcessor(config: MediaConfig, fetcher: typeof fetch = fet
         const actual = imageFormat(String.fromCharCode(...image.subarray(0, 32)));
         const format = metadata.format === "jpg" ? "jpeg" : metadata.format;
 
-        if (request.return_mask || format !== actual || contentType !== `image/${actual}`) throw new Error("Invalid binary image response");
+        if (requireMask || format !== actual || contentType !== `image/${actual}`) throw new Error("Invalid binary image response");
 
         const ended = performance.now();
 
@@ -199,13 +220,17 @@ export type Processor = ReturnType<typeof createProcessor>;
 
 /** Validate before reserving a credit. Failed processing refunds the reserved credit. */
 export function removeBackground(request: RemoveBackgroundRequest, identity: Identity, db: Database, process: Processor) {
+  return processImage(identity, db, () => process(request));
+}
+
+export function processImage(identity: Identity, db: Database, process: () => Promise<ProcessedImage>) {
   return Effect.gen(function* () {
-    if (identity.kind === "trial") return yield* attempt(() => process(request));
+    if (identity.kind === "trial") return yield* attempt(process);
 
     const started = Date.now();
     const credit = yield* attempt(() => db.reserveCredit(identity.userId));
 
-    const outcome = yield* attempt(() => process(request)).pipe(Effect.match({
+    const outcome = yield* attempt(process).pipe(Effect.match({
       onSuccess: (result) => ({ success: true, result }),
       onFailure: (error) => ({ success: false, error }),
     }));

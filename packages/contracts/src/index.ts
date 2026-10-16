@@ -22,6 +22,33 @@ export const RemoveBackgroundRequest = Schema.Struct({
 
 export type RemoveBackgroundRequest = typeof RemoveBackgroundRequest.Type;
 
+export const StillImageFormat = Schema.Literals(["jpeg", "jpg", "png", "webp"]);
+
+export const ImageOperation = Schema.Literals(["compress-image", "convert-image"]);
+
+export type ImageOperation = typeof ImageOperation.Type;
+
+const EncodingOptions = {
+  quality: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))),
+  lossless: Schema.optionalKey(Schema.Boolean),
+  compression_level: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 9 }))),
+};
+
+export const CompressImageRequest = Schema.Struct({ image_data: Schema.String, ...EncodingOptions });
+
+export type CompressImageRequest = typeof CompressImageRequest.Type;
+
+export const ConvertImageRequest = Schema.Struct({ image_data: Schema.String, format: StillImageFormat, ...EncodingOptions });
+
+export type ConvertImageRequest = typeof ConvertImageRequest.Type;
+
+/** Validated CPU worker input. Compression resolves the source format at the API boundary. */
+export const ImageTransformJob = Schema.Struct({
+  operation: ImageOperation, image_data: Schema.String, format: StillImageFormat, ...EncodingOptions,
+});
+
+export type ImageTransformJob = typeof ImageTransformJob.Type;
+
 export const ImageMetadata = Schema.Struct({
   original_size: Schema.optionalKey(Schema.Array(Schema.Number)),
   output_size: Schema.optionalKey(Schema.Array(Schema.Number)),
@@ -33,9 +60,30 @@ export const ImageMetadata = Schema.Struct({
   frame_count: Schema.optionalKey(Schema.Number),
   model: Schema.optionalKey(Schema.String),
   model_revision: Schema.optionalKey(Schema.String),
+  operation: Schema.optionalKey(ImageOperation),
+  input_bytes: Schema.optionalKey(Schema.Int),
+  output_bytes: Schema.optionalKey(Schema.Int),
+  bytes_saved: Schema.optionalKey(Schema.Int),
+  retained_original: Schema.optionalKey(Schema.Boolean),
+  lossless: Schema.optionalKey(Schema.Boolean),
+  compression_level: Schema.optionalKey(Schema.Int),
 });
 
-/** Internal GPU delivery envelope; the signed URL never reaches API clients. */
+const ImageDimensions = Schema.Tuple([Schema.Int.check(Schema.isGreaterThan(0)), Schema.Int.check(Schema.isGreaterThan(0))]);
+
+export const ImageTransformMetadata = Schema.Struct({
+  ...ImageMetadata.fields,
+  operation: ImageOperation,
+  format: StillImageFormat,
+  original_size: ImageDimensions,
+  output_size: ImageDimensions,
+  input_bytes: Schema.Int.check(Schema.isGreaterThan(0)),
+  output_bytes: Schema.Int.check(Schema.isGreaterThan(0)),
+  bytes_saved: Schema.Int,
+  retained_original: Schema.Boolean,
+});
+
+/** Internal worker delivery envelope; the signed URL never reaches API clients. */
 export const WorkerFileDelivery = Schema.Struct({
   url: Schema.String,
   content_type: Schema.Literals(["image/png", "image/jpeg", "image/webp", "image/gif", "application/json"]),
@@ -51,6 +99,13 @@ export const RemoveBackgroundResponse = Schema.Struct({
 });
 
 export type RemoveBackgroundResponse = typeof RemoveBackgroundResponse.Type;
+
+export const ImageTransformResponse = Schema.Struct({
+  success: Schema.Literal(true), result_image: Schema.String,
+  processing_time_ms: Schema.Number, metadata: ImageTransformMetadata,
+});
+
+export type ImageTransformResponse = typeof ImageTransformResponse.Type;
 
 export const ApiFailure = Schema.Struct({
   success: Schema.optionalKey(Schema.Literal(false)),

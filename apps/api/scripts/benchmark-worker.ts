@@ -11,6 +11,7 @@ export default {
     response.headers.set("X-Benchmark-Duration-Ms", String(Math.round(performance.now() - started)));
     response.headers.set("X-Benchmark-Received-At", receivedAt);
     response.headers.set("X-Benchmark-Request-Id", crypto.randomUUID());
+    response.headers.set("X-Benchmark-Endpoint", env.BEAM_ENDPOINT_URL);
 
     return response;
   },

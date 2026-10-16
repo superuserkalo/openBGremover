@@ -38,6 +38,7 @@ const handler = createHandler({
   }, deleteUser },
   withDatabase: (use) => use(database),
   process: createProcessor({ endpoint: "https://gpu.example/run", apiKey: "test", outputUrlPrefix: "https://files.example/workspace/" }, gpu),
+  processImage: undefined,
   allowedOrigins: ["https://web.example"],
   allowTrial: async () => true,
 });

@@ -10,6 +10,7 @@
     "ALLOWED_ORIGINS": "http://localhost:3000,https://openbgremover.dev,https://www.openbgremover.dev",
     "SUPABASE_URL": "https://bxwzgybcivctgasyhwur.supabase.co",
     "BEAM_ENDPOINT_URL": "https://app.beam.cloud/endpoint/bg-removal/v18",
+    "IMAGE_PROCESSING_ENDPOINT_URL": "https://image-processing-e41046c-v1.app.beam.cloud",
     "BEAM_OUTPUT_URL_PREFIX": "https://s3.wasabisys.com/workspace-prod-0cec183f-7477-43a6-879a-a2362c671dd1/"
   },
   "hyperdrive": [

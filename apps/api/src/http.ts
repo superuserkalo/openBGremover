@@ -5,11 +5,14 @@ import { readText } from "./body";
 import type { Database } from "./database";
 import { ApiError, attempt, errorResponse } from "./errors";
 import { imageBase64, imageBytes, readImageRequest, removeBackground, type Identity, type ProcessedImage, type Processor } from "./media";
+import { processImage } from "./media";
+import { readImageTransformRequest, type ImageProcessor } from "./image-processing";
 
 export interface Dependencies {
   auth: ReturnType<typeof createAuth>;
   withDatabase: (use: (database: Database) => Promise<Response>) => Promise<Response>;
   process: Processor;
+  processImage: ImageProcessor | undefined;
   allowedOrigins: readonly string[];
   allowTrial: () => Promise<boolean>;
 }
@@ -85,12 +88,14 @@ export function createHandler(deps: Dependencies) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204 });
 
     if (request.method === "GET" && (path === "/health" || path === "/" || path === "/api/info")) {
-      return Response.json({ status: "ok", service: "openbg-api", operations: ["remove-background"] });
+      const operations = deps.processImage ? ["remove-background", "compress-image", "convert-image"] : ["remove-background"];
+
+      return Response.json({ status: "ok", service: "openbg-api", operations });
     }
 
     const routeKey = `${request.method} ${path}`;
     const keyDeletion = request.method === "DELETE" && /^\/api\/v1\/keys\/\d+$/.test(path);
-    const routes = ["POST /api/v1/remove-background", "GET /api/v1/stats", "GET /api/v1/activity", "GET /api/v1/keys", "POST /api/v1/keys", "DELETE /api/v1/account", "POST /api/v1/billing/upgrade"];
+    const routes = ["POST /api/v1/remove-background", "POST /api/v1/compress-image", "POST /api/v1/convert-image", "GET /api/v1/stats", "GET /api/v1/activity", "GET /api/v1/keys", "POST /api/v1/keys", "DELETE /api/v1/account", "POST /api/v1/billing/upgrade"];
 
     if (!keyDeletion && !routes.includes(routeKey)) {
       throw new ApiError({ code: "NOT_FOUND", message: "Route not found", status: 404 });
@@ -102,6 +107,23 @@ export function createHandler(deps: Dependencies) {
 
     return deps.withDatabase(async (db) => {
       const identity = await identify(request, db, sessionUserId);
+
+      if (routeKey === "POST /api/v1/compress-image" || routeKey === "POST /api/v1/convert-image") {
+        if (identity.kind === "trial") throw new ApiError({ code: "FORBIDDEN", message: "Trial keys are restricted to background removal", status: 403 });
+
+        const process = deps.processImage;
+
+        if (!process) throw new ApiError({ code: "PROCESSING_UNAVAILABLE", message: "Image compression and conversion are not configured", status: 503 });
+
+        const operation = routeKey === "POST /api/v1/compress-image" ? "compress-image" : "convert-image";
+        const input = await readImageTransformRequest(request, operation);
+        const binary = request.headers.get("accept")?.split(",").some((value) => value.trim() === "image/*") === true;
+
+        return Effect.runPromise(processImage(identity, db, () => process(input)).pipe(Effect.match({
+          onFailure: errorResponse,
+          onSuccess: (result) => processingResponse(result, binary, input.format),
+        })));
+      }
 
       if (routeKey === "POST /api/v1/remove-background") {
         const input = await readImageRequest(request);

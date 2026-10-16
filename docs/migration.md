@@ -7,6 +7,11 @@ connection. Secrets are configured separately and are not committed.
 
 ## Configuration
 
+The optional CPU image worker is configured separately with
+`IMAGE_PROCESSING_ENDPOINT_URL`; an empty value disables compression/conversion
+without charging requests. See [the image-operation setup and verification](image-processing.md#configure-and-verify-a-deployment).
+This does not change `BEAM_ENDPOINT_URL` or the background-removal checkpoint.
+
 1. Keep the existing Supabase project, database, login configuration, and signup
    profile trigger. The API expects the columns shown in `apps/api/test/schema.sql`;
    that file is a **test fixture**, not a production migration. No database changes

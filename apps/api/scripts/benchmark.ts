@@ -37,7 +37,23 @@ const cycles = Schema.decodeUnknownSync(Schema.NumberFromString.check(Schema.isI
 
 const warmRequests = Schema.decodeUnknownSync(Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 0, maximum: 10 })))(process.env.BENCHMARK_WARM_REQUESTS ?? "5");
 
+const concurrency = Schema.decodeUnknownSync(Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 4 })))(process.env.BENCHMARK_CONCURRENCY ?? "1");
+
+const returnMask = Schema.decodeUnknownSync(Schema.Literals(["true", "false"]))(process.env.BENCHMARK_RETURN_MASK ?? "false") === "true";
+
+const maximumDimension = process.env.BENCHMARK_MAX_DIMENSION === undefined ? undefined :
+  Schema.decodeUnknownSync(Schema.NumberFromString.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 8192 })))(process.env.BENCHMARK_MAX_DIMENSION);
+
 const exec = promisify(execFile);
+
+function apiUrl(path: string): URL {
+  const url = new URL(`${api}${path}`);
+
+  // Fresh URLs also avoid stale routing while temporary deployments become available.
+  url.searchParams.set("benchmark_request", randomUUID());
+
+  return url;
+}
 
 const Containers = Schema.Array(Schema.Struct({
   container_id: Schema.String,
@@ -58,12 +74,16 @@ interface Measurement {
   worker_processing_ms: number;
   output_bytes: number;
   output_sha256: string;
+  output_format: "png" | "gif";
+  mask_sha256: string | null;
   api_duration_ms: number | null;
   api_received_at: string | null;
   request_id: string | null;
 }
 
 const measurements: Measurement[] = [];
+
+const attempts: { started_at: string; temperature: Measurement["temperature"]; status: number; total_ms: number; endpoint: string | null; failure_body: string | null }[] = [];
 
 const observations: { at: string; containers: typeof Containers.Type }[] = [];
 
@@ -83,8 +103,9 @@ async function save(): Promise<void> {
   await writeFile(`${output}/report.json`, JSON.stringify({
     started_at: startedAt, updated_at: new Date().toISOString(), completed, cleaned_up: cleanedUp,
     api, stub_id: stubId, image_bytes: image.length, temporary_user_id: userId, failure,
-    methodology: `${cycles} natural scale-to-zero cold starts, each followed by ${warmRequests} sequential warm requests. Same PNG and deployment. No forced container stops.`,
-    measurements, container_observations: observations,
+    methodology: `${cycles} natural scale-to-zero cold starts, each followed by ${warmRequests} warm batches of ${concurrency} request(s). Same input and deployment. No forced container stops.`,
+    concurrency, return_mask: returnMask, maximum_dimension: maximumDimension,
+    measurements, attempts, container_observations: observations,
   }, null, 2));
 }
 
@@ -120,16 +141,29 @@ async function measure(key: string, cycle: number, temperature: Measurement["tem
   const started = performance.now();
   const at = new Date().toISOString();
 
-  const response = await fetch(`${api}/api/v1/remove-background`, {
+  const response = await fetch(apiUrl("/api/v1/remove-background"), {
     method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ image_data: imageData, format: "png" }), signal: AbortSignal.timeout(200_000),
+    body: JSON.stringify({
+      image_data: imageData, format: "png", return_mask: returnMask,
+      resize_options: maximumDimension === undefined ? undefined : { max_width: maximumDimension, max_height: maximumDimension },
+    }), signal: AbortSignal.timeout(200_000),
   });
 
   const headersMs = performance.now() - started;
   const bytes = await response.arrayBuffer();
   const totalMs = performance.now() - started;
 
+  attempts.push({
+    started_at: at, temperature, status: response.status, total_ms: Math.round(totalMs),
+    endpoint: response.headers.get("X-Benchmark-Endpoint"),
+    failure_body: response.ok ? null : new TextDecoder().decode(bytes).slice(0, 1024),
+  });
+  await save();
   assert.equal(response.status, 200, "Image request must succeed");
+
+  if (process.env.BENCHMARK_ENDPOINT_URL) {
+    assert.equal(response.headers.get("X-Benchmark-Endpoint"), process.env.BENCHMARK_ENDPOINT_URL, "API must use the intended benchmark worker");
+  }
 
   const result = Schema.decodeUnknownSync(RemoveBackgroundResponse)(JSON.parse(new TextDecoder().decode(bytes)));
 
@@ -137,22 +171,38 @@ async function measure(key: string, cycle: number, temperature: Measurement["tem
   assert.equal(result.metadata.model, "ZhengPeng7/BiRefNet_HR-matting");
   assert.ok(result.metadata.processing_time_ms !== undefined);
 
-  const png = Buffer.from(result.result_image, "base64");
+  const processedImage = Buffer.from(result.result_image, "base64");
+  const outputFormat = result.metadata.is_animated ? "gif" : "png";
 
-  assert.ok(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
-  measurements.push({
+  assert.equal(result.metadata.format, outputFormat);
+  assert.ok(outputFormat === "gif"
+    ? ["GIF87a", "GIF89a"].includes(processedImage.subarray(0, 6).toString("ascii"))
+    : processedImage.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
+
+  if (returnMask && outputFormat === "png") assert.ok(result.mask_image, "Requested static mask must be present");
+
+  const mask = result.mask_image === undefined ? undefined : Buffer.from(result.mask_image, "base64");
+
+  if (mask) assert.ok(mask.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
+
+  const measurement: Measurement = {
     cycle, temperature, started_at: at, status: response.status,
     headers_ms: Math.round(headersMs), total_ms: Math.round(totalMs),
     api_worker_roundtrip_ms: result.processing_time_ms,
-    worker_processing_ms: result.metadata.processing_time_ms, output_bytes: png.length,
-    output_sha256: createHash("sha256").update(png).digest("hex"),
+    worker_processing_ms: result.metadata.processing_time_ms, output_bytes: processedImage.length,
+    output_sha256: createHash("sha256").update(processedImage).digest("hex"),
+    output_format: outputFormat, mask_sha256: mask ? createHash("sha256").update(mask).digest("hex") : null,
     api_duration_ms: response.headers.has("X-Benchmark-Duration-Ms") ? Number(response.headers.get("X-Benchmark-Duration-Ms")) : null,
     api_received_at: response.headers.get("X-Benchmark-Received-At"),
     request_id: response.headers.get("X-Benchmark-Request-Id"),
-  });
-  await writeFile(`${output}/output.png`, png);
+  };
+
+  measurements.push(measurement);
+  await writeFile(`${output}/output.${outputFormat}`, processedImage);
+
+  if (mask) await writeFile(`${output}/mask.png`, mask);
   await save();
-  console.log(JSON.stringify(measurements.at(-1)));
+  console.log(JSON.stringify(measurement));
 }
 
 await mkdir(output, { recursive: true });
@@ -177,7 +227,7 @@ try {
   assert.equal(login.status, 200);
   session = Schema.decodeUnknownSync(Schema.Struct({ access_token: Schema.String }))(await login.json()).access_token;
 
-  const createdKey = await fetch(`${api}/api/v1/keys`, {
+  const createdKey = await fetch(apiUrl("/api/v1/keys"), {
     method: "POST", headers: { Authorization: `Bearer ${session}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Temporary latency benchmark" }),
     signal: AbortSignal.timeout(30_000),
@@ -192,7 +242,14 @@ try {
     await measure(key, cycle, "cold");
     await containers();
 
-    for (let index = 0; index < warmRequests; index++) await measure(key, cycle, "warm");
+    for (let index = 0; index < warmRequests; index++) {
+      // Settle the full burst before cleanup so a failure cannot delete an identity still in use.
+      const results = await Promise.allSettled(Array.from({ length: concurrency }, () => measure(key, cycle, "warm")));
+
+      for (const result of results) {
+        if (result.status === "rejected") throw result.reason;
+      }
+    }
 
     await containers();
   }
@@ -205,7 +262,7 @@ try {
 } finally {
   try {
     if (userId) {
-      const removed = session ? await fetch(`${api}/api/v1/account`, {
+      const removed = session ? await fetch(apiUrl("/api/v1/account"), {
         method: "DELETE", headers: { Authorization: `Bearer ${session}` }, signal: AbortSignal.timeout(15_000),
       }).catch(() => undefined) : undefined;
 

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { Client } from "pg";
 import { Schema } from "effect";
-import { ActivityResponse, CreateKeyResponse, ImageMetadata, KeysResponse, RemoveBackgroundResponse, StatsResponse } from "@openbg/contracts";
+import { ActivityResponse, CreateKeyResponse, ImageMetadata, ImageTransformMetadata, ImageTransformResponse, KeysResponse, RemoveBackgroundResponse, StatsResponse } from "@openbg/contracts";
 
 function required(name: string): string {
   const value = process.env[name];
@@ -26,6 +26,10 @@ const databaseUrl = required("DATABASE_URL");
 const imagePath = required("E2E_IMAGE_PATH");
 
 const outputDirectory = "artifacts/e2e";
+
+const imageOperations = process.env.E2E_IMAGE_OPERATIONS === "1";
+
+const expectedSuccesses = imageOperations ? 9 : 3;
 
 const checks: string[] = [];
 
@@ -68,6 +72,45 @@ function passed(check: string): void {
   console.log(`PASS ${check}`);
 }
 
+async function verifyImageOperations(token: string, image: string): Promise<void> {
+  for (const format of ["jpeg", "png", "webp"]) {
+    const response = await call("/api/v1/convert-image", token, "POST", JSON.stringify({ image_data: image, format }));
+
+    assert.equal(response.status, 200, `Convert image to ${format}`);
+    const result = Schema.decodeUnknownSync(ImageTransformResponse)(await response.json());
+    const bytes = Buffer.from(result.result_image, "base64");
+
+    assert.equal(result.metadata.format, format);
+    assert.equal(result.metadata.operation, "convert-image");
+    assert.equal(result.metadata.device, "cpu");
+    assert.equal(result.metadata.output_bytes, bytes.length);
+    await writeFile(`${outputDirectory}/converted.${format}`, bytes);
+
+    const compressed = await fetch(`${api}/api/v1/compress-image`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": `image/${format}`, Accept: "image/*" },
+      body: bytes, signal: AbortSignal.timeout(200_000),
+    });
+
+    assert.equal(compressed.status, 200, `Compress ${format}`);
+    assert.equal(compressed.headers.get("content-type"), `image/${format}`);
+    const metadata = Schema.decodeUnknownSync(ImageTransformMetadata)(JSON.parse(compressed.headers.get("x-image-metadata") ?? "null"));
+    const output = Buffer.from(await compressed.arrayBuffer());
+
+    assert.equal(metadata.operation, "compress-image");
+    assert.equal(metadata.format, format);
+    assert.equal(metadata.input_bytes, bytes.length);
+    assert.equal(metadata.output_bytes, output.length);
+    assert.equal(metadata.bytes_saved, bytes.length - output.length);
+    assert.ok(output.length <= bytes.length);
+
+    if (metadata.retained_original) assert.deepEqual(output, bytes);
+
+    await writeFile(`${outputDirectory}/compressed.${format}`, output);
+  }
+
+  passed("CPU conversion and raw binary compression for JPEG, PNG, and WebP");
+}
+
 await mkdir(outputDirectory, { recursive: true });
 
 try {
@@ -100,7 +143,7 @@ try {
 
   const initial = await stats(session);
 
-  assert.ok(initial.free_credits_remaining >= 3, "Signup trigger supplies credits for all three output-path checks");
+  assert.ok(initial.free_credits_remaining >= expectedSuccesses, "Signup trigger supplies enough credits for the requested checks");
   passed("Supabase login, JWT verification, signup profile, and numeric credit balances");
 
   const createdKey = await call("/api/v1/keys", session, "POST", JSON.stringify({ name: "Deployment verification" }));
@@ -158,11 +201,13 @@ try {
 
   assert.deepEqual(Buffer.from(jsonResult.result_image, "base64"), binaryBytes);
 
+  if (imageOperations) await verifyImageOperations(key.api_key, image);
+
   const afterSuccess = await stats(key.api_key);
 
-  assert.equal(afterSuccess.free_credits_remaining, initial.free_credits_remaining - 3);
-  assert.equal(afterSuccess.images_processed, 3);
-  passed("Original binary upload, binary result, public JSON compatibility, identical output bytes, and exactly three total charges");
+  assert.equal(afterSuccess.free_credits_remaining, initial.free_credits_remaining - expectedSuccesses);
+  assert.equal(afterSuccess.images_processed, expectedSuccesses);
+  passed(`Binary/JSON compatibility and exactly ${expectedSuccesses} total successful charges`);
 
   const malformed = await call("/api/v1/remove-background", key.api_key, "POST", JSON.stringify({ image_data: "invalid" }));
 
@@ -172,12 +217,22 @@ try {
   const failed = await call("/api/v1/remove-background", key.api_key, "POST", JSON.stringify({ image_data: truncated }));
 
   assert.equal(failed.status, 502);
+
+  if (imageOperations) {
+    const invalidOptions = await call("/api/v1/convert-image", key.api_key, "POST", JSON.stringify({ image_data: image, format: "gif" }));
+
+    assert.equal(invalidOptions.status, 400);
+    const failedCpu = await call("/api/v1/compress-image", key.api_key, "POST", JSON.stringify({ image_data: truncated }));
+
+    assert.equal(failedCpu.status, 400, "CPU decoder failure must refund its reservation");
+  }
+
   assert.equal((await stats(key.api_key)).free_credits_remaining, afterSuccess.free_credits_remaining);
 
   const activity = Schema.decodeUnknownSync(ActivityResponse)(await (await call("/api/v1/activity", key.api_key)).json());
 
-  assert.equal(activity.activities.filter((item) => item.was_successful).length, 3);
-  assert.equal(activity.activities.filter((item) => !item.was_successful).length, 1);
+  assert.equal(activity.activities.filter((item) => item.was_successful).length, expectedSuccesses);
+  assert.equal(activity.activities.filter((item) => !item.was_successful).length, imageOperations ? 2 : 1);
   passed("Invalid input rejection, real worker failure refund, and persisted usage activity");
 
   assert.equal((await call(`/api/v1/keys/${key.key_id}`, session, "DELETE")).status, 200);

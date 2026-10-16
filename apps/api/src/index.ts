@@ -3,12 +3,16 @@ import { createAuth } from "./auth";
 import { createDatabase } from "./database";
 import { createHandler } from "./http";
 import { createProcessor } from "./media";
+import { createImageProcessor } from "./image-processing";
 
 export default {
   async fetch(request, env, context) {
     const handle = createHandler({
       auth: createAuth({ url: env.SUPABASE_URL, publishableKey: env.SUPABASE_PUBLISHABLE_KEY, secretKey: env.SUPABASE_SECRET_KEY }),
       process: createProcessor({ endpoint: env.BEAM_ENDPOINT_URL, apiKey: env.BEAM_API_KEY, outputUrlPrefix: env.BEAM_OUTPUT_URL_PREFIX }),
+      processImage: env.IMAGE_PROCESSING_ENDPOINT_URL
+        ? createImageProcessor({ endpoint: env.IMAGE_PROCESSING_ENDPOINT_URL, apiKey: env.BEAM_API_KEY, outputUrlPrefix: env.BEAM_OUTPUT_URL_PREFIX })
+        : undefined,
       allowedOrigins: env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()),
       allowTrial: async () => (await env.TRIAL_LIMITER.limit({ key: "public-demo" })).success,
       async withDatabase(use) {
