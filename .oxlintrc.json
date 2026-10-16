@@ -2,7 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react", "unicorn", "oxc"],
   "ignorePatterns": [
-    "**/node_modules/**", "**/.next/**", "**/dist/**", "**/.wrangler/**",
+    "**/.source/**", "**/node_modules/**", "**/.next/**", "**/dist/**", "**/.wrangler/**",
     "**/worker-configuration.d.ts", "**/next-env.d.ts",
     ".agent/**", ".agents/**", ".claude/**", ".codex/**", ".continue/**",
     ".cursor/**", ".gemini/**", ".opencode/**", ".pi/**", ".roo/**", ".windsurf/**",

@@ -24,3 +24,9 @@ model_cache/
 *.pem
 .vscode/
 .idea/
+
+# Generated Fumadocs collections
+.source/
+
+# Agent worktrees
+.claude/worktrees/
