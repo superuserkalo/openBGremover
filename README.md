@@ -4,6 +4,10 @@ Media processing infrastructure for agents. Background removal is the first
 implemented operation; the HTTP API is the common entry point for the web app
 and future CLI, SDK, and MCP clients.
 
+Agent contributors should read [AGENTS.md](AGENTS.md). `CLAUDE.md` imports that
+same guidance. For GPU allocation and cost decisions, read the dated
+[Beam sizing review](docs/beam-resource-sizing.md).
+
 ## Repository
 
 | Directory | Responsibility |
@@ -12,6 +16,7 @@ and future CLI, SDK, and MCP clients.
 | `apps/web` | Next.js website, Supabase login, dashboard, and public demo |
 | `packages/contracts` | Effect Schema request/response definitions shared by both apps |
 | `workers/background-removal` | Python/Beam GPU inference and image encoding |
+| `workers/image-processing` | Pillow compression/conversion on CPU-only Beam compute |
 | `tools/oxlint/anti-slop` | Vendored Dillon Mulroy anti-slop rules |
 
 Supabase continues to own Postgres and authentication. The API connects to
@@ -40,8 +45,9 @@ npm run dev:web
 
 Set the Supabase URL, Beam URL, and allowed web origins in
 `apps/api/wrangler.jsonc`. Put credentials in `.dev.vars`, which is ignored by
-Git. The checked-in Hyperdrive ID and local database connection are placeholders.
-For local requests, point `localConnectionString` at your development Postgres.
+Git. The checked-in Hyperdrive ID identifies the existing production connection;
+the local connection string is a placeholder. For local requests, point
+`localConnectionString` at your development Postgres.
 The existing Supabase `profiles`, `api_keys`, and `usage_logs` tables are retained.
 
 The web app uses `NEXT_PUBLIC_API_URL` and its own public Supabase configuration.
@@ -57,6 +63,8 @@ npm run build:web   # Requires public Supabase and API environment variables
 npm run test:e2e    # Opt-in live test; requires the private deployment configuration below
 python -m pip install -r workers/background-removal/requirements-test.txt
 python -m unittest discover -s workers/background-removal -p test_imaging.py -v
+python -m pip install -r workers/image-processing/requirements.txt
+python -m unittest discover -s workers/image-processing -p test_imaging.py -v
 ```
 
 The TypeScript tests run SQL in PGlite, an isolated PostgreSQL engine. They do
@@ -72,7 +80,23 @@ inference charges plus failure refunds, and removes that account afterward.
 Reports and image outputs go to the ignored
 `artifacts/e2e` directory. Run it only against a deployment you own.
 
+## Website documentation
+
+`/docs` uses Fumadocs, matching the documentation structure on withradian.com.
+Edit public articles in `apps/web/content/docs/`; `meta.json` orders the sidebar.
+MDX compilation supplies the page outline and search index. Every article also
+has a `.md` URL for Copy Markdown. `npm run check` regenerates collection types;
+`npm run build:web` compiles the articles and Markdown routes for production.
+Generated `.source` files are ignored and should not be edited.
+
 ## HTTP API
+
+Static image compression and conversion are implemented at
+`POST /api/v1/compress-image` and `POST /api/v1/convert-image`. They use the same
+authentication and credit accounting, support JPEG/PNG/WebP, and require the
+CPU worker's `IMAGE_PROCESSING_ENDPOINT_URL` binding before becoming available.
+Both operations are [deployed and verified in production](docs/image-processing-rollout-2026-10-15.md).
+See [request options, response examples, limits, and deployment](docs/image-processing.md).
 
 Send `Authorization: Bearer <API key>` to `POST /api/v1/remove-background` with
 JSON containing `image_data` (base64). Optional fields are `format`, `quality`,
@@ -127,6 +151,11 @@ PNG/WebP preserve soft alpha. Animated inputs produce GIFs, with a maximum of
 25 megapixels; output dimensions are capped at 8192 per side and 25 megapixels.
 The old quality names remain accepted aliases of the same matting model.
 
-Long-running jobs, object storage, idempotency, billing checkout, additional
+Long-running jobs, object storage, idempotency, billing checkout, further
 media operations, and agent client packages remain future work. The current
 synchronous endpoint is documented with its failure limits in the migration guide.
+
+### SDKs
+
+Node.js and Python clients provide file input and decoded image output through
+the shared HTTP API. See [source installation and usage](docs/sdks.md).

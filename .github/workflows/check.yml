@@ -10,9 +10,16 @@ jobs:
           node-version: 26.7.0
           cache: npm
       - run: npm ci
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - run: pip install -r workers/image-processing/requirements.txt
       - run: npm run types -w @openbg/api
       - run: npm run check
+        env:
+          IMAGE_TEST_PYTHON: python
       - run: npm run build:api
+      - run: npm run build -w @openbg/sdk
       - run: npm run build:web
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -27,3 +34,6 @@ jobs:
           python-version: '3.12'
       - run: pip install -r workers/background-removal/requirements-test.txt
       - run: python -m unittest discover -s workers/background-removal -p test_imaging.py -v
+      - run: pip install -r workers/image-processing/requirements.txt
+      - run: python -m unittest discover -s workers/image-processing -p test_imaging.py -v
+      - run: PYTHONPATH=packages/python-sdk python -m unittest discover -s packages/python-sdk/tests -v
