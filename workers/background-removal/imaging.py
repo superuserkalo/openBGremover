@@ -4,6 +4,8 @@ import io
 import time
 from collections.abc import Callable
 
+import imagecodecs
+import numpy as np
 from PIL import Image, ImageChops, ImageOps, ImageSequence
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -38,14 +40,14 @@ def encode(image: Image.Image, output_format: str, fast_png: bool = False) -> by
         background = Image.new("RGB", image.size, "white")
         background.paste(image, mask=image.getchannel("A"))
         background.save(buffer, "JPEG", quality=95)
-    elif output_format == "png" and fast_png:
-        # Both levels are lossless. Retain level 6 when level 5 would exceed
-        # the API's binary result allowance but the original encoding might fit.
-        image.save(buffer, "PNG", compress_level=5)
-        if buffer.tell() > MAX_BINARY_RESULT_BYTES:
-            buffer.seek(0)
-            buffer.truncate()
-            image.save(buffer, "PNG", compress_level=6)
+    elif output_format == "png" and fast_png and not any(key in image.info for key in ("icc_profile", "exif", "transparency")):
+        # UP filtering and compression level 3 preserve every RGBA sample while
+        # avoiding Pillow's adaptive filter search. Keep the original encoder
+        # as a size fallback so a faster encoding cannot reject a fitting image.
+        result = imagecodecs.png_encode(np.asarray(image), level=3, filter=imagecodecs.PNG.FILTER.UP)
+        if len(result) <= MAX_BINARY_RESULT_BYTES:
+            return result
+        image.save(buffer, "PNG", compress_level=6)
     else:
         image.save(buffer, output_format.upper())
     return buffer.getvalue()

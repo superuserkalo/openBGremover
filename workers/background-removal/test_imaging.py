@@ -1,8 +1,9 @@
 import base64
 import io
 import unittest
+import numpy as np
 from PIL import Image
-from imaging import process_image, output_size
+from imaging import process_image, output_size, encode
 
 
 def encoded(image, format="PNG", **options):
@@ -20,6 +21,30 @@ def soft_mask(image):
 
 
 class ImagePipelineTests(unittest.TestCase):
+    def test_fast_png_preserves_all_channels_including_hidden_rgb(self):
+        pixels = np.random.default_rng(42).integers(0, 256, (257, 513, 4), dtype=np.uint8)
+        pixels[0, :, 3] = 0
+        pixels[1, :, 3] = np.arange(513, dtype=np.uint16) % 256
+        image = Image.fromarray(pixels)
+        result = Image.open(io.BytesIO(encode(image, "png", fast_png=True)))
+        self.assertEqual(result.size, image.size)
+        self.assertEqual(result.mode, "RGBA")
+        self.assertEqual(result.tobytes(), image.tobytes())
+
+    def test_fast_png_size_fallback_keeps_original_encoder_and_metadata(self):
+        pixels = np.random.default_rng(7).integers(0, 256, (2048, 2048, 4), dtype=np.uint8)
+        image = Image.fromarray(pixels)
+        reference = encode(image, "png")
+        self.assertGreater(len(reference), 12 * 1024 * 1024)
+        result = encode(image, "png", fast_png=True)
+        self.assertEqual(result, reference)
+        image = Image.new("RGBA", (97, 131), (29, 83, 151, 127))
+        image.info["icc_profile"] = b"profile preserved verbatim"
+        image.info["exif"] = Image.Exif().tobytes()
+        result = Image.open(io.BytesIO(encode(image, "png", fast_png=True)))
+        self.assertEqual(result.info["icc_profile"], image.info["icc_profile"])
+        self.assertEqual(result.tobytes(), image.tobytes())
+
     def test_binary_transport_preserves_pixels_alpha_and_dimensions(self):
         image = Image.new("RGBA", (2048, 1536), (18, 92, 203, 191))
         source = encoded(image)
