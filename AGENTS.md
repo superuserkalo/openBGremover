@@ -71,6 +71,12 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
 - Validate inputs before reserving credits. Keep row-locked reservation,
   successful usage recording, and failed-processing refunds together. Keep
   Hyperdrive query caching disabled for balances, revocation, and usage.
+- Change the database schema only through new files in `supabase/migrations/`.
+  Production predates the repository's migrations: before running the Supabase
+  CLI against it the first time, mark the baseline applied with
+  `supabase migration repair --status applied 20261016000000`; otherwise the CLI
+  tries to recreate existing tables. Keep `apps/api/test/schema.sql` consistent
+  with the migrations it models.
 - Read the migration guide before changing retries, credits, payments, account
   deletion, or job execution. The synchronous API has no durable reservation
   ledger or idempotency guarantee. Add durable jobs, idempotency, and recovery
