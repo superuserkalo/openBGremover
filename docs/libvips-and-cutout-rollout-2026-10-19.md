@@ -18,7 +18,7 @@ went live through one Cloudflare API deployment:
 | Cloudflare API | `e7085675-6e8e-4c2b-985d-992cfb605971` |
 | Background removal | `bg-removal` v20, deployment `47c5c5c8-547b-4156-9144-b94d4dd7ec2f`, stub `6811a085-a896-4930-87a6-4eca6b3b071b` |
 | Image processing | `image-processing` v3, deployment `3450ade7-0287-4462-842c-a6c2da4f0013`, endpoint `https://image-processing-e41046c-v3.app.beam.cloud` |
-| Legacy Cloud Run | **Still on v18** (`openbgremover-00044-gw6`) |
+| Legacy Cloud Run | Still on v18 (`openbgremover-00044-gw6`); see [the Cloud Run mistake](#mistake-trying-to-update-the-legacy-cloud-run-service) |
 
 Configuration is unchanged: one CPU and 8 GiB on both workers; RTX 4090,
 warmed checkpoint, 60-second idle window, and scale-to-zero on the GPU worker.
@@ -75,8 +75,40 @@ Not done:
 - **Background removal:** v18 (`e0a2747a-637d-41f9-865e-d86e25474016`) stays
   active, because the legacy Cloud Run service still calls it.
 - **Whole API:** the previous version is `7f511425-9aad-4d83-844a-68d78cadd343`.
-- **Cloud Run:** switching it to v20 was not authorized in this session. After
-  that switch and a smoke check, stop v18.
+- **Cloud Run:** left on v18. It should be shut down, not switched to v20; see
+  below.
+
+## Mistake: trying to update the legacy Cloud Run service
+
+During this rollout I tried to point the Google Cloud Run service
+`openbgremover` at background removal v20 with `gcloud run services update`.
+The permission check blocked the command. I then reported the switch as the
+one remaining rollout step and asked for approval to run it.
+
+That was the wrong step. The Cloud Run service runs the old Go API, whose source
+(`go-api/`) was removed from this repository in `ea9e69b` on 13 October 2026,
+when the API moved to Cloudflare Workers. Nothing in this repository calls it:
+the website, SDKs and live E2E all use the Cloudflare API. I followed the
+"update Cloud Run while it remains in use" step in
+[the checkpoint rollout procedure](checkpoint-production-rollout.md) without
+checking whether anything still used it.
+
+Why it matters:
+
+- Switching it would have kept a retired service in every future rollout.
+- It still keeps one minimum instance, about $9.86/month before free-tier
+  credits (see [pricing research](beam-pricing-research.md)).
+- It is the only reason Beam v18 is still deployed.
+
+What should happen instead:
+
+1. Check the service's recent request logs (read-only) for real traffic.
+2. If there is none, delete the service, stop Beam v18
+   (`e0a2747a-637d-41f9-865e-d86e25474016`), and remove the legacy Cloud Run
+   steps from `AGENTS.md` and the rollout procedure.
+3. If a client still calls it, move that client to the Cloudflare API first.
+
+None of these steps had been taken when this record was written.
 
 Private deployment logs are under ignored
 `artifacts/deployments/libvips-2026-10-19/`.
