@@ -36,7 +36,7 @@ Use `max_width` and `max_height` to constrain dimensions, or `width` and `height
 
 ## Output
 
-PNG and WebP preserve soft transparency. JPEG composites the result against white. Animated inputs produce GIF output. A mask, when requested for a static image, is a PNG returned in `mask_image`.
+PNG and WebP preserve soft transparency. Fully transparent pixels carry no colour, so the removed background cannot be recovered from the cutout. JPEG composites the result against white. Animated inputs produce GIF output. A mask, when requested for a static image, is a PNG returned in `mask_image`.
 
 JSON responses include `success`, `result_image`, `processing_time_ms`, and `metadata`. Decode `result_image` from base64 to save it. `Accept: image/*` requests image bytes directly, unless you request a mask, which keeps the JSON image-and-mask response.
 
