@@ -1,1 +1,4 @@
 pillow==12.3.0
+pillow-heif==1.8.1
+pyvips==3.2.0
+pyvips-binary==8.18.7

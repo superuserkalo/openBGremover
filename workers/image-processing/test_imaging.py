@@ -5,6 +5,7 @@ import struct
 import unittest
 import zlib
 
+import pillow_heif
 from PIL import Image, ImageCms, ImageOps
 
 from imaging import MAX_OUTPUT_BYTES, OutputTooLarge, transform_image
@@ -143,6 +144,80 @@ class ImageTransformTests(unittest.TestCase):
         data, _ = transform_image(value, "compress-image", "jpeg", quality=100)
         self.assertLessEqual(len(data), len(base64.b64decode(value)))
         self.assertLess(len(data), MAX_OUTPUT_BYTES)
+
+
+    def test_heic_input_is_upright_once_with_its_profile_and_alpha(self):
+        exif = Image.Exif()
+        exif[274] = 6
+        profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        heif = pillow_heif.from_pillow(self.image)
+        output = io.BytesIO()
+        heif.save(output, quality=-1, exif=exif.tobytes(), icc_profile=profile)
+        value = base64.b64encode(output.getvalue()).decode()
+        result, meta = transform_image(value, "convert-image", "png")
+        image = Image.open(io.BytesIO(result))
+        # libheif applies the stored rotation; applying EXIF again would undo it.
+        self.assertEqual(image.size, (96, 128))
+        self.assertEqual(image.info["icc_profile"], profile)
+        self.assertEqual(meta["original_size"], [96, 128])
+        rgba = Image.new("RGBA", (16, 16), (10, 200, 30, 0))
+        rgba.paste((10, 200, 30, 128), (0, 0, 8, 16))
+        output = io.BytesIO()
+        pillow_heif.from_pillow(rgba).save(output, quality=-1)
+        result, _ = transform_image(base64.b64encode(output.getvalue()).decode(), "convert-image", "webp", lossless=True)
+        alpha = Image.open(io.BytesIO(result)).getchannel("A")
+        self.assertEqual(alpha.getextrema(), (0, 128))
+        with self.assertRaisesRegex(ValueError, "source format"):
+            transform_image(value, "compress-image", "jpeg")
+
+    def test_heic_pixel_limit_is_checked_before_decoding(self):
+        output = io.BytesIO()
+        pillow_heif.from_pillow(Image.new("RGB", (5008, 5008))).save(output, quality=10)
+        with self.assertRaisesRegex(ValueError, "25 megapixels"):
+            transform_image(base64.b64encode(output.getvalue()).decode(), "convert-image", "jpeg")
+
+    def test_avif_output_and_input_with_alpha_quality_and_encoder(self):
+        rgba = self.image.convert("RGBA")
+        rgba.putalpha(Image.linear_gradient("L").resize(rgba.size))
+        value = encoded(rgba)
+        small, meta = transform_image(value, "convert-image", "avif", quality=20)
+        large, _ = transform_image(value, "convert-image", "avif", quality=90)
+        implicit, _ = transform_image(value, "convert-image", "avif")
+        explicit, _ = transform_image(value, "convert-image", "avif", quality=60)
+        self.assertLess(len(small), len(large))
+        self.assertEqual(implicit, explicit)
+        self.assertEqual((meta["encoder"], meta["quality_used"]), ("libavif", "20"))
+        image = Image.open(io.BytesIO(large))
+        self.assertEqual((image.format, image.mode), ("AVIF", "RGBA"))
+        avif = base64.b64encode(large).decode()
+        data, meta = transform_image(avif, "compress-image", "avif", quality=30)
+        self.assertLessEqual(len(data), len(large))
+        result, _ = transform_image(avif, "convert-image", "png")
+        self.assertEqual(Image.open(io.BytesIO(result)).mode, "RGBA")
+
+    def test_reports_encoders_and_never_writes_exif(self):
+        exif = Image.Exif()
+        exif[271] = "camera"
+        value = encoded(self.image, "JPEG", exif=exif)
+        for target, encoder in [("jpeg", "mozjpeg"), ("png", "libpng"), ("webp", "libwebp")]:
+            with self.subTest(target=target):
+                result, meta = transform_image(value, "convert-image", target)
+                self.assertEqual(meta["encoder"], encoder)
+                self.assertNotIn("exif", Image.open(io.BytesIO(result)).info)
+
+    def test_jpeg_keeps_420_subsampling_at_high_quality(self):
+        result, _ = transform_image(self.png, "convert-image", "jpeg", quality=95)
+        from PIL import JpegImagePlugin
+        self.assertEqual(JpegImagePlugin.get_sampling(Image.open(io.BytesIO(result))), 2)
+
+    def test_cmyk_jpeg_converts_to_rgb(self):
+        value = encoded(Image.new("CMYK", (8, 8), (0, 255, 255, 0)), "JPEG", quality=95)
+        result, _ = transform_image(value, "convert-image", "png")
+        image = Image.open(io.BytesIO(result))
+        self.assertEqual(image.mode, "RGB")
+        red, green, blue = image.getpixel((4, 4))
+        self.assertGreater(red, 180)
+        self.assertLess(max(green, blue), 80)
 
 
 if __name__ == "__main__":
