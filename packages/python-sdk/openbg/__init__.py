@@ -13,7 +13,7 @@ import math
 __all__ = ["OpenBG", "OpenBGError", "ImageResult", "ImageTransformResult", "ImageTransformMetadata", "ResizeOptions"]
 
 ImageFormat = Literal["png", "webp", "gif", "jpg", "jpeg"]
-StillImageFormat = Literal["png", "webp", "jpg", "jpeg"]
+StillImageFormat = Literal["png", "webp", "jpg", "jpeg", "avif"]
 Quality = Literal["auto", "quality", "portrait", "product", "speed"]
 
 
@@ -62,6 +62,7 @@ class ImageTransformMetadata:
     quality_used: str | None = None
     lossless: bool | None = None
     compression_level: int | None = None
+    encoder: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -85,7 +86,7 @@ def _decode_result(payload: bytes) -> ImageResult:
         if not isinstance(image, str) or not image or (mask is not None and not isinstance(mask, str)):
             raise ValueError("Invalid image data")
         image_format = metadata.get("format")
-        if image_format is not None and image_format not in ("png", "webp", "gif", "jpg", "jpeg"):
+        if image_format is not None and image_format not in ("png", "webp", "gif", "jpg", "jpeg", "avif"):
             raise ValueError("Invalid image format")
         return ImageResult(b64decode(image, validate=True), duration, image_format,
                            b64decode(mask, validate=True) if mask is not None else None)
@@ -97,7 +98,7 @@ def _decode_transform_result(payload: bytes, operation: str) -> ImageTransformRe
     result = _decode_result(payload)
     try:
         metadata = json.loads(payload)["metadata"]
-        if metadata.get("operation") != operation or result.format not in ("jpeg", "jpg", "png", "webp"):
+        if metadata.get("operation") != operation or result.format not in ("jpeg", "jpg", "png", "webp", "avif"):
             raise ValueError("Unexpected operation or format")
         for key in ("original_size", "output_size"):
             value = metadata.get(key)
@@ -116,13 +117,15 @@ def _decode_transform_result(payload: bytes, operation: str) -> ImageTransformRe
             raise ValueError("Invalid lossless")
         if "compression_level" in metadata and type(metadata["compression_level"]) is not int:
             raise ValueError("Invalid compression_level")
+        if "encoder" in metadata and not isinstance(metadata["encoder"], str):
+            raise ValueError("Invalid encoder")
         parsed = ImageTransformMetadata(
             operation=metadata["operation"], format=metadata["format"],
             original_size=tuple(metadata["original_size"]), output_size=tuple(metadata["output_size"]),
             input_bytes=metadata["input_bytes"], output_bytes=metadata["output_bytes"],
             bytes_saved=metadata["bytes_saved"], retained_original=metadata["retained_original"],
             quality_used=metadata.get("quality_used"), lossless=metadata.get("lossless"),
-            compression_level=metadata.get("compression_level"),
+            compression_level=metadata.get("compression_level"), encoder=metadata.get("encoder"),
         )
         return ImageTransformResult(image=result.image, processing_time_ms=result.processing_time_ms,
                                     format=result.format, metadata=parsed)
@@ -193,7 +196,7 @@ class OpenBG:
     def convert_image(self, image: str | Path | bytes, *, format: StillImageFormat,
                       quality: int | None = None, lossless: bool | None = None,
                       compression_level: int | None = None) -> ImageTransformResult:
-        if format not in ("png", "webp", "jpg", "jpeg"):
+        if format not in ("png", "webp", "jpg", "jpeg", "avif"):
             raise ValueError("Unsupported conversion format")
         options = {"format": format, **_encoding_options(quality, lossless, compression_level)}
         return _decode_transform_result(self._post("convert-image", image, options), "convert-image")

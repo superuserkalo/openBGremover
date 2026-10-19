@@ -97,6 +97,10 @@ class ClientTests(unittest.TestCase):
                                                   "quality": 73, "lossless": lossless})
         self.app.convert_image(b"input", format="png", compression_level=9)
         self.assertEqual(self.requests[-1][2]["compression_level"], 9)
+        self.payload["metadata"].update(format="avif", encoder="libavif", quality_used="40")
+        result = self.app.convert_image(b"input", format="avif", quality=40)
+        self.assertEqual(self.requests[-1][2], {"image_data": "aW5wdXQ=", "format": "avif", "quality": 40})
+        self.assertEqual((result.format, result.metadata.encoder), ("avif", "libavif"))
 
     def test_background_defaults_are_omitted_and_resize_is_available(self):
         self.app.remove_background(b"input")
