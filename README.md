@@ -16,7 +16,7 @@ same guidance. For GPU allocation and cost decisions, read the dated
 | `apps/web` | Next.js website, Supabase login, dashboard, and public demo |
 | `packages/contracts` | Effect Schema request/response definitions shared by both apps |
 | `workers/background-removal` | Python/Beam GPU inference and image encoding |
-| `workers/image-processing` | Pillow compression/conversion on CPU-only Beam compute |
+| `workers/image-processing` | libvips compression/conversion (Pillow for AVIF, pillow-heif for HEIC) on CPU-only Beam compute |
 | `tools/oxlint/anti-slop` | Vendored Dillon Mulroy anti-slop rules |
 
 Supabase continues to own Postgres and authentication. The API connects to

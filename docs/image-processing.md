@@ -1,12 +1,18 @@
 # Image compression and conversion
 
-The authenticated API implements two static-image operations using Pillow
-12.3.0 on a CPU-only Beam worker:
+The authenticated API implements two static-image operations on a CPU-only
+Beam worker. libvips (pyvips 3.2.0, pyvips-binary 8.18.7) decodes JPEG, PNG,
+WebP, and AVIF, applies orientation and colour management, and encodes JPEG
+(MozJPEG), PNG (libpng), and WebP (libwebp). Standalone pillow-heif 1.8.1
+decodes HEIC, which libvips cannot. Pillow 12.3.0 encodes AVIF (libavif),
+because libvips disables aom's intra block copy and makes AVIF text and
+graphics four to five times larger. The reasoning is in
+[the Pillow and libvips research](https://github.com/superuserkalo/openBGremover/blob/research/pillow-libvips-pipeline/docs/research/pillow-libvips-pipeline.md):
 
 | Endpoint | Behavior |
 | --- | --- |
 | `POST /api/v1/compress-image` | Keep the input format. Return the original bytes if re-encoding would not reduce size. |
-| `POST /api/v1/convert-image` | Produce the requested JPEG, PNG, or WebP format, even if it increases size. |
+| `POST /api/v1/convert-image` | Produce the requested JPEG, PNG, WebP, or AVIF format, even if it increases size. HEIC input converts to any of them. |
 
 These routes require `IMAGE_PROCESSING_ENDPOINT_URL` to be configured. An empty
 value returns 503 before credit reservation, and `/api/info` omits the two
@@ -21,8 +27,9 @@ The playground exposes **Compress** and **Convert** alongside background
 removal. Both require sign-in and use the same authenticated API and image
 credits. The dashboard links to the playground through **Open image tools**.
 
-Compression keeps the source format. Conversion offers JPEG, PNG, and WebP.
-Collapsed **Advanced settings** expose optional JPEG/WebP quality, lossy or
+Compression keeps the source format. Conversion offers JPEG, PNG, WebP, and
+AVIF, and accepts HEIC uploads; the compress tool explains that HEIC must be
+converted. Collapsed **Advanced settings** expose optional JPEG/WebP/AVIF quality, lossy or
 lossless WebP, and PNG compression level. In lossless WebP mode, quality is
 labeled compression effort. Blank settings use server defaults; opening or
 closing Advanced settings does not change them. **Reset to recommended** clears
@@ -67,8 +74,8 @@ Conversion requires JSON and a target format:
 
 | Option | Allowed values | Applies to | Default |
 | --- | --- | --- | --- |
-| `format` | `jpeg`, `jpg`, `png`, `webp` | Conversion only; required | None |
-| `quality` | Integer 1–100 | JPEG/WebP output | 80 |
+| `format` | `jpeg`, `jpg`, `png`, `webp`, `avif` | Conversion only; required | None |
+| `quality` | Integer 1–100 | JPEG/WebP/AVIF output | 80; 60 for AVIF |
 | `lossless` | Boolean | WebP output | `false` |
 | `compression_level` | Integer 0–9 | PNG output | 6 |
 
@@ -78,11 +85,25 @@ overrides. Conversion still requires a target format. Both SDKs expose every
 encoding option; see [client examples](sdks.md). `null` is not an API default
 sentinel: omit the property instead (Python `None` is omitted by the SDK).
 
-PNG is lossless at every compression level. A higher level changes encoding
-effort and file size, not pixel quality. WebP uses Pillow method 4; when lossless
-is true, quality controls compression effort rather than lossy visual quality.
-JPEG uses 4:2:0 chroma subsampling and optimized entropy coding. `jpg` is an
-alias; output metadata and content type use `jpeg`.
+PNG is lossless at every compression level and uses adaptive row filtering
+(libvips' default is none, which makes photos much larger). A higher level
+changes encoding effort and file size, not pixel quality. WebP uses effort 4;
+when lossless is true, quality controls compression effort rather than lossy
+visual quality. JPEG uses MozJPEG with trellis quantisation, overshoot
+deringing, optimised progressive scans, quant table 3, and explicit 4:2:0
+chroma subsampling (libvips would otherwise switch it off at quality 90 and
+above). AVIF uses aom speed 6 and 4:2:0. `jpg` is an alias; output metadata and
+content type use `jpeg`. Metadata reports the selected `encoder`.
+
+AVIF's default quality is 60, chosen on 19 October 2026 by PSNR against the
+JPEG default on three images (12 MP landscape photo, bird photo, text graphic):
+JPEG quality 80 gave 38.19, 39.88, and 33.45 dB; AVIF quality 60 gave 38.23,
+39.81, and 37.00 dB at 31%, 32%, and 93% smaller files. PSNR is a proxy, not a
+visual study. Revisit with SSIMULACRA2 on a representative set.
+
+MozJPEG makes the same 12 MP photo 22% smaller than the previous Pillow
+libjpeg-turbo encoder at quality 80 (1.24 versus 1.58 MiB) and takes about four
+times as long locally (605 versus 156 ms); WebP and PNG sizes were unchanged.
 
 Unknown options and options for the wrong output format return 400. The new
 operations do not accept the background-removal model's named `quality`
@@ -137,17 +158,24 @@ curl "$API_URL/api/v1/compress-image" \
 
 ## Image behavior and limits
 
-- Inputs are JPEG, PNG, and WebP, at most 10 MiB and 25 million pixels.
+- Inputs are JPEG, PNG, WebP, AVIF, and HEIC, at most 10 MiB and 25 million
+  pixels. The pixel limit is checked from the header, before decoding.
   Outputs are bounded at 12 MiB. Conversion can exceed that limit even when
   the compressed input fits, and returns an error instead of an oversized file.
-- Only single-frame, 8-bit channels are supported. Animated PNG/WebP, GIF,
-  AVIF, and 16-bit PNG are rejected. Frames are never silently discarded.
+- Only single-frame images are supported. Animated PNG/WebP/AVIF, GIF, HEIC
+  burst sequences, and 16-bit PNG/JPEG/WebP are rejected. Frames are never
+  silently discarded. 10- and 12-bit HEIC and AVIF convert to 8-bit.
+- HEIC uses only the primary image; depth maps, HDR gain maps, and thumbnails
+  are never decoded. PQ/HLG HDR HEIC is rejected. libheif has already applied
+  rotation, so EXIF orientation is never applied again. HEIC can be converted
+  but not compressed, because there is no HEIC output.
 - PNG and lossless WebP preserve soft alpha and hidden RGB samples. JPEG
-  flattens transparency onto white. Lossy WebP preserves alpha while compressing
-  RGB.
+  flattens transparency onto white. Lossy WebP and AVIF preserve alpha while
+  compressing RGB.
 - Re-encoding applies EXIF orientation and omits EXIF and text metadata. RGB
-  ICC profiles are preserved. Profiled CMYK/grayscale images convert through
-  LittleCMS to sRGB; unprofiled CMYK uses Pillow's RGB conversion.
+  ICC profiles are preserved. CMYK and profiled grayscale images convert
+  through LittleCMS to sRGB; unprofiled CMYK uses libvips' built-in CMYK
+  profile. HEIC that signals Display P3 only through nclx converts to sRGB.
   If compression retains the original, its original metadata and orientation
   tag remain intact, and output dimensions describe those original bytes.
 - A compressed result is not guaranteed to be smaller; it is guaranteed not
@@ -209,9 +237,10 @@ IMAGE_TEST_PYTHON=/absolute/path/to/python npm run check
 npm run build:api
 ```
 
-`IMAGE_TEST_PYTHON` opts into a local integration test using the real Pillow
-pipeline through the API handlers and PGlite accounting. It exercises all nine
-format conversions, compression in each format, and an actual decoder failure.
+`IMAGE_TEST_PYTHON` opts into a local integration test using the real worker
+pipeline through the API handlers and PGlite accounting. It exercises every
+JPEG/PNG/WebP/AVIF conversion pair, compression in each format, HEIC conversion,
+and an actual decoder failure.
 It does not establish deployed Supabase/Hyperdrive/Beam behavior.
 
 Verification recorded on 15 October 2026: strict TypeScript and Oxlint passed;

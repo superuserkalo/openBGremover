@@ -1,6 +1,6 @@
 ---
 title: Convert images
-description: Convert a static image to JPEG, PNG, or WebP.
+description: Convert a static image to JPEG, PNG, WebP, or AVIF.
 ---
 
 ```http
@@ -29,6 +29,7 @@ Set `Content-Type: application/json` and authenticate with your API key. Use `Ac
 | `jpeg` or `jpg` | Flattened onto white | Lossy RGB encoding |
 | `png` | Preserved | Lossless encoding |
 | `webp` | Preserved | Lossy by default; optional lossless mode |
+| `avif` | Preserved | Lossy; usually the smallest file, slower to encode |
 
 `jpg` is an alias. Output metadata and content type use `jpeg`. Conversion may increase file size. Negative `bytes_saved` in the response means the result is larger than the input.
 
@@ -36,7 +37,7 @@ Set `Content-Type: application/json` and authenticate with your API key. Use `Ac
 
 | Option | Allowed values | Applies to | Default |
 | --- | --- | --- | --- |
-| `quality` | Integer 1–100 | JPEG and WebP | 80 |
+| `quality` | Integer 1–100 | JPEG, WebP, and AVIF | 80 for JPEG and WebP, 60 for AVIF |
 | `lossless` | Boolean | WebP | `false` |
 | `compression_level` | Integer 0–9 | PNG | 6 |
 
@@ -44,8 +45,10 @@ Omit untouched options. Explicit `false` and `0` are preserved; `null` is not a 
 
 PNG is lossless at every compression level. Higher levels change encoding effort and file size. In lossless WebP mode, quality controls compression effort. Lossless encoding cannot restore detail already lost in a JPEG.
 
+The server picks one encoder per format and reports it as `encoder` in the metadata: MozJPEG for JPEG, libpng for PNG, libwebp for WebP, and libavif for AVIF. AVIF quality uses its own scale: 60 gives about the same fidelity as JPEG at 80, in a smaller file.
+
 ## Image handling
 
-Conversion applies EXIF orientation and omits EXIF and text metadata. RGB ICC profiles are preserved. Profiled CMYK and grayscale inputs convert to sRGB; unprofiled CMYK uses Pillow's RGB conversion.
+Conversion applies EXIF orientation and omits EXIF and text metadata. RGB ICC profiles are preserved. CMYK and grayscale inputs convert to sRGB, using their embedded profile or a standard CMYK profile when none is embedded.
 
-Inputs must be static, 8-bit JPEG, PNG, or WebP. Animated inputs are rejected. See [limits](/docs/limits).
+Inputs must be static JPEG, PNG, WebP, AVIF, or HEIC. HEIC is an input format only: convert it to any output format. Only the primary photo in a HEIC file is used; burst sequences are rejected, and depth maps and HDR gain maps are ignored. 10- and 12-bit HEIC and AVIF are converted to 8-bit. JPEG, PNG, and WebP inputs must be 8-bit. Animated inputs are rejected. See [limits](/docs/limits).

@@ -9,7 +9,7 @@ POST /api/v1/compress-image
 
 ## Request
 
-Upload JPEG, PNG, or WebP bytes to use default settings:
+Upload JPEG, PNG, WebP, or AVIF bytes to use default settings:
 
 ```sh
 curl --fail-with-body "$OPENBG_API_URL/api/v1/compress-image" \
@@ -32,7 +32,7 @@ Compression has no `format` option. Use [conversion](/docs/convert-image) to cha
 
 | Option | Allowed values | Applies to | Default |
 | --- | --- | --- | --- |
-| `quality` | Integer 1–100 | JPEG and WebP | 80 |
+| `quality` | Integer 1–100 | JPEG, WebP, and AVIF | 80 for JPEG and WebP, 60 for AVIF |
 | `lossless` | Boolean | WebP | `false` |
 | `compression_level` | Integer 0–9 | PNG | 6 |
 
@@ -40,10 +40,12 @@ Omit untouched options. Explicit `false` and `0` are preserved; `null` is not a 
 
 PNG is lossless at every compression level. Higher levels change encoding effort and file size. In lossless WebP mode, quality controls compression effort. Lossless encoding cannot restore detail already lost in a JPEG.
 
+The server picks one encoder per format and reports it as `encoder` in the metadata: MozJPEG for JPEG, libpng for PNG, libwebp for WebP, and libavif for AVIF. AVIF quality uses its own scale: 60 gives about the same fidelity as JPEG at 80, in a smaller file.
+
 ## When the original is smaller
 
 If re-encoding cannot reduce size, the API returns the original bytes. Metadata reports `retained_original: true` and `bytes_saved: 0`. The original metadata and EXIF orientation tag remain intact. A successful unchanged result still costs one image credit.
 
-Re-encoded results apply EXIF orientation and omit EXIF and text metadata. RGB ICC profiles are preserved. Only static, 8-bit JPEG, PNG, and WebP inputs are supported.
+Re-encoded results apply EXIF orientation and omit EXIF and text metadata. RGB ICC profiles are preserved. Only static JPEG, PNG, WebP, and AVIF inputs can be compressed. HEIC has no output format, so [convert](/docs/convert-image) it instead.
 
 See [responses](/docs/responses) for savings metadata and [limits](/docs/limits) for upload restrictions.

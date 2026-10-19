@@ -11,13 +11,14 @@ description: Validate uploads and choose an output format before processing.
 | Input pixels | 25 million per image | 25 million per image |
 | Animation | Up to 60 frames and 60 million total frame pixels | Not supported |
 | Output size | 12 MiB encoded image | 12 MiB encoded image |
-| Output formats | PNG, WebP, GIF, JPEG | JPEG, PNG, WebP |
+| Input formats | PNG, JPEG, WebP, GIF | JPEG, PNG, WebP, AVIF, HEIC |
+| Output formats | PNG, WebP, GIF, JPEG | JPEG, PNG, WebP, AVIF |
 
-Compression and conversion accept only single-frame, 8-bit JPEG, PNG, and WebP. GIF, AVIF, animated PNG/WebP, and 16-bit PNG are rejected. A conversion may exceed the output limit even if the input fits.
+Compression and conversion accept only single-frame images. GIF, animated PNG/WebP/AVIF, HEIC burst sequences, HDR (PQ/HLG) HEIC, and 16-bit PNG are rejected. HEIC can be converted but not compressed. A conversion may exceed the output limit even if the input fits.
 
 ## Transparency
 
-PNG and WebP preserve soft alpha. JPEG flattens transparent pixels onto white. Animated background-removal results use GIF, which cannot preserve soft alpha like PNG or WebP.
+PNG, WebP, and AVIF preserve soft alpha. JPEG flattens transparent pixels onto white. Animated background-removal results use GIF, which cannot preserve soft alpha like PNG or WebP.
 
 ## Defaults and overrides
 
