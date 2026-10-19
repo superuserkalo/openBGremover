@@ -29,7 +29,8 @@ const outputDirectory = "artifacts/e2e";
 
 const imageOperations = process.env.E2E_IMAGE_OPERATIONS === "1";
 
-const expectedSuccesses = imageOperations ? 9 : 3;
+// Background removal: 3. Image operations add convert + compress for 4 formats and one HEIC conversion.
+const expectedSuccesses = imageOperations ? 12 : 3;
 
 const checks: string[] = [];
 
@@ -73,7 +74,7 @@ function passed(check: string): void {
 }
 
 async function verifyImageOperations(token: string, image: string): Promise<void> {
-  for (const format of ["jpeg", "png", "webp"]) {
+  for (const format of ["jpeg", "png", "webp", "avif"]) {
     const response = await call("/api/v1/convert-image", token, "POST", JSON.stringify({ image_data: image, format }));
 
     assert.equal(response.status, 200, `Convert image to ${format}`);
@@ -108,7 +109,18 @@ async function verifyImageOperations(token: string, image: string): Promise<void
     await writeFile(`${outputDirectory}/compressed.${format}`, output);
   }
 
-  passed("CPU conversion and raw binary compression for JPEG, PNG, and WebP");
+  const heic = (await readFile(new URL("./fixtures/e2e.heic", import.meta.url))).toString("base64");
+  const fromHeic = await call("/api/v1/convert-image", token, "POST", JSON.stringify({ image_data: heic, format: "jpeg" }));
+
+  assert.equal(fromHeic.status, 200, "Convert HEIC to JPEG");
+  const heicResult = Schema.decodeUnknownSync(ImageTransformResponse)(await fromHeic.json());
+
+  assert.deepEqual(heicResult.metadata.output_size, [96, 64]);
+  assert.equal(heicResult.metadata.encoder, "mozjpeg");
+  // HEIC has no output format, so compression is rejected before a credit is reserved.
+  assert.equal((await call("/api/v1/compress-image", token, "POST", JSON.stringify({ image_data: heic }))).status, 400);
+
+  passed("CPU conversion and raw binary compression for JPEG, PNG, WebP, and AVIF, and HEIC conversion");
 }
 
 await mkdir(outputDirectory, { recursive: true });
