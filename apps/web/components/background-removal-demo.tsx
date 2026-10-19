@@ -24,12 +24,17 @@ import { mediaOperations } from "@/lib/media-operations";
 import { readImageResponse } from "@/lib/image-response";
 import { apiFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import { imageTransformBody, readTransformResponse, sourceImageFormat, type TransformOptions } from "@/lib/image-transform";
+import { imageTransformBody, isHeic, readTransformResponse, sourceImageFormat, type TransformOptions } from "@/lib/image-transform";
+
+const BACKGROUND_INPUTS = { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"], "image/webp": [".webp"] };
+
+// Compression and conversion also read AVIF and HEIC; background removal does not.
+const TRANSFORM_INPUTS = { ...BACKGROUND_INPUTS, "image/avif": [".avif"], "image/heic": [".heic"], "image/heif": [".heif"] };
 
 type ProcessingState =
   | { status: "idle" }
   | { status: "processing" }
-  | { status: "complete"; output: string; extension: "png" | "gif" | "jpeg" | "webp"; summary: string }
+  | { status: "complete"; output: string; extension: "png" | "gif" | "jpeg" | "webp" | "avif"; summary: string }
   | { status: "failed"; message: string };
 
 export function ImageComparison({
@@ -174,18 +179,21 @@ export function BackgroundRemovalDemo({
     const nextFile = files[0];
 
     if (!nextFile) return;
+
+    if (tool === "compress" && isHeic(nextFile)) {
+      setState({ status: "failed", message: "HEIC images can be converted, not compressed. Use Convert to make a JPEG, PNG, WebP, or AVIF." });
+
+      return;
+    }
+
     setFile(nextFile);
     setOriginal(URL.createObjectURL(nextFile));
     setState({ status: "idle" });
-  }, []);
+  }, [tool]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
-    accept: {
-      "image/png": [".png"],
-      "image/jpeg": [".jpg", ".jpeg"],
-      "image/webp": [".webp"],
-    },
+    accept: transform ? TRANSFORM_INPUTS : BACKGROUND_INPUTS,
     multiple: false,
     maxSize: 10 * 1024 * 1024,
     disabled: busy,
@@ -194,7 +202,7 @@ export function BackgroundRemovalDemo({
     onDropRejected: () =>
       setState({
         status: "failed",
-        message: "Choose a PNG, JPEG, or WebP image up to 10 MiB.",
+        message: transform ? "Choose a PNG, JPEG, WebP, AVIF, or HEIC image up to 10 MiB." : "Choose a PNG, JPEG, or WebP image up to 10 MiB.",
       }),
   });
 
@@ -353,12 +361,13 @@ export function BackgroundRemovalDemo({
                   <select id={`${optionsId}-format`} value={format} onChange={(event) => {
                     const value = event.target.value;
 
-                    if (value === "jpeg" || value === "png" || value === "webp") setFormat(value);
+                    if (value === "jpeg" || value === "png" || value === "webp" || value === "avif") setFormat(value);
                     setState({ status: "idle" });
                   }} className="rounded-lg border border-input bg-background px-3 py-2">
                     <option value="jpeg">JPEG</option>
                     <option value="png">PNG</option>
                     <option value="webp">WebP</option>
+                    <option value="avif">AVIF</option>
                   </select>
                 </div>
               ) : <p className="text-muted-foreground">Keep the original format. Return the original if it is already smaller.</p>}

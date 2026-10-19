@@ -4,16 +4,23 @@ import { readImageResponse } from "./image-response";
 
 export type TransformOptions = {
   operation: ImageOperation;
-  format: "jpeg" | "png" | "webp";
+  format: "jpeg" | "png" | "webp" | "avif";
   quality: number | undefined;
   lossless: boolean | undefined;
   compressionLevel: number | undefined;
 };
 
+/** HEIC is accepted for conversion only; the API has no HEIC output. */
+export function isHeic(file: File): boolean {
+  return file.type === "image/heic" || file.type === "image/heif" || /\.hei[cf]$/i.test(file.name);
+}
+
 export function sourceImageFormat(file: File): TransformOptions["format"] {
   if (file.type === "image/png" || /\.png$/i.test(file.name)) return "png";
 
   if (file.type === "image/webp" || /\.webp$/i.test(file.name)) return "webp";
+
+  if (file.type === "image/avif" || /\.avif$/i.test(file.name)) return "avif";
 
   return "jpeg";
 }

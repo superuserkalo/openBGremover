@@ -21,7 +21,7 @@ const questions = [
   {
     question: "Which files can I upload?",
     answer:
-      "The playground accepts PNG, JPEG, and WebP images up to 10 MB. The API also enforces a 25-megapixel input limit. Your original image is uploaded without browser downscaling.",
+      "Background removal accepts PNG, JPEG, and WebP images up to 10 MB. Compress and Convert also accept AVIF, and Convert accepts HEIC photos from iPhones. The API also enforces a 25-megapixel input limit. Your original image is uploaded without browser downscaling.",
   },
   {
     question: "Does the result keep transparency?",
