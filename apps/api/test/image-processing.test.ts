@@ -18,6 +18,9 @@ const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQCKhoAAA
 
 const bytes = Buffer.from(PNG, "base64");
 
+// Only the leading ftyp box: enough for the API's format check, not a decodable image.
+const HEIC_HEADER = Buffer.concat([Buffer.from("\0\0\0\x18ftypheic\0\0\0\0mif1heic", "latin1"), Buffer.alloc(8)]).toString("base64");
+
 const sql = new PGlite();
 
 const database = createDatabase({
@@ -76,7 +79,7 @@ beforeEach(async () => {
 });
 
 describe("image compression/conversion through the authenticated API", () => {
-  it.skipIf(!process.env.IMAGE_TEST_PYTHON)("runs real Pillow conversions through routing, contracts, credit accounting, and refunds", async () => {
+  it.skipIf(!process.env.IMAGE_TEST_PYTHON)("runs real worker conversions through routing, contracts, credit accounting, and refunds", async () => {
     const python = process.env.IMAGE_TEST_PYTHON;
 
     if (!python) throw new Error("Set IMAGE_TEST_PYTHON to a Python interpreter with Pillow installed");
@@ -106,11 +109,11 @@ describe("image compression/conversion through the authenticated API", () => {
 
       return new Response(Buffer.from(result.image, "base64"), { headers: { "Content-Type": `image/${result.metadata.format}`, "X-Image-Metadata": JSON.stringify(result.metadata) } });
     });
-    await sql.query("UPDATE profiles SET free_images_remaining=20 WHERE id=$1", [USER]);
+    await sql.query("UPDATE profiles SET free_images_remaining=40 WHERE id=$1", [USER]);
     const handle = handler();
     let successes = 0;
 
-    for (const format of ["jpeg", "png", "webp"]) {
+    for (const format of ["jpeg", "png", "webp", "avif"]) {
       const seed = await handle(request("convert-image", JSON.stringify({ image_data: PNG, format })));
 
       expect(seed.status).toBe(200);
@@ -118,7 +121,7 @@ describe("image compression/conversion through the authenticated API", () => {
 
       successes++;
 
-      for (const target of ["jpeg", "png", "webp"]) {
+      for (const target of ["jpeg", "png", "webp", "avif"]) {
         const converted = await handle(request("convert-image", JSON.stringify({ image_data: input, format: target })));
 
         expect(converted.status).toBe(200);
@@ -133,10 +136,24 @@ describe("image compression/conversion through the authenticated API", () => {
       successes++;
     }
 
+    const heic = await new Promise<string>((resolve, reject) => {
+      const code = "import base64, io, pillow_heif; from PIL import Image; o = io.BytesIO(); pillow_heif.from_pillow(Image.new('RGB', (8, 6), 'red')).save(o, quality=-1); print(base64.b64encode(o.getvalue()).decode())";
+
+      execFile(python, ["-c", code], (error, output) => (error ? reject(error) : resolve(output.trim())));
+    });
+
+    for (const target of ["jpeg", "avif"]) {
+      const converted = await handle(request("convert-image", JSON.stringify({ image_data: heic, format: target })));
+
+      expect(converted.status).toBe(200);
+      expect(Schema.decodeUnknownSync(ImageTransformResponse)(await converted.json()).metadata).toMatchObject({ format: target, output_size: [8, 6] });
+      successes++;
+    }
+
     const truncated = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.alloc(24)]).toString("base64");
 
     expect((await handle(request("compress-image", JSON.stringify({ image_data: truncated })))).status).toBe(400);
-    expect(await database.stats(USER)).toMatchObject({ images_processed: successes, free_credits_remaining: 20 - successes, api_calls_total: successes + 1 });
+    expect(await database.stats(USER)).toMatchObject({ images_processed: successes, free_credits_remaining: 40 - successes, api_calls_total: successes + 1 });
     expect(gpu).not.toHaveBeenCalled();
   }, 30_000);
 
@@ -204,15 +221,20 @@ describe("image compression/conversion through the authenticated API", () => {
       { image_data: PNG, quality: 80 }, { image_data: PNG, lossless: false },
       { image_data: PNG, compression_level: 10 }, { image_data: PNG, compression_level: 1.5 },
       { image_data: PNG, return_mask: true }, { image_data: PNG, resize_options: { width: 5, height: 5 } },
+      { image_data: HEIC_HEADER },
     ]) expect((await handle(request("compress-image", JSON.stringify(payload)))).status).toBe(400);
 
     for (const payload of [
       { image_data: PNG }, { image_data: PNG, format: "gif" },
       { image_data: PNG, format: "jpeg", quality: 0 }, { image_data: PNG, format: "webp", quality: 101 },
       { image_data: PNG, format: "jpeg", lossless: true }, { image_data: PNG, format: "webp", compression_level: 3 },
+      { image_data: PNG, format: "avif", lossless: true }, { image_data: PNG, format: "heic" },
     ]) expect((await handle(request("convert-image", JSON.stringify(payload)))).status).toBe(400);
 
     expect((await handle(request("compress-image", "{"))).status).toBe(400);
+    // HEIC and AVIF are compression/conversion inputs only.
+    expect((await handle(request("remove-background", JSON.stringify({ image_data: HEIC_HEADER })))).status).toBe(400);
+    expect(gpu).not.toHaveBeenCalled();
     expect(cpu).not.toHaveBeenCalled();
     expect(await database.stats(USER)).toMatchObject({ free_credits_remaining: 1, api_calls_total: 0 });
   });

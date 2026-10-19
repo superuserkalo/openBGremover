@@ -57,7 +57,25 @@ export function imageFormat(prefix: string) {
   throw new Error("Unsupported image");
 }
 
-export function decodeImageData(input: string, maximum = 14 * 1024 * 1024): string {
+const HEIC_BRANDS = ["heic", "heix", "heim", "heis", "hevc", "hevx", "hevm", "hevs"];
+
+/** HEIC and AVIF are ISO-BMFF files: brands in the leading ftyp box name the codec. */
+export function heifFormat(prefix: string): "heic" | "avif" | undefined {
+  if (prefix.slice(4, 8) !== "ftyp") return undefined;
+
+  // Major brand, then compatible brands after the 4-byte minor version.
+  const brands = [prefix.slice(8, 12)];
+
+  for (let offset = 16; offset + 4 <= prefix.length; offset += 4) brands.push(prefix.slice(offset, offset + 4));
+
+  if (brands.some((brand) => brand === "avif" || brand === "avis")) return "avif";
+
+  if (brands.some((brand) => HEIC_BRANDS.includes(brand))) return "heic";
+
+  return undefined;
+}
+
+export function decodeImageData(input: string, maximum = 14 * 1024 * 1024, sniff: (prefix: string) => string = imageFormat): string {
   const data = input.replace(/^data:image\/[\w.+-]+;base64,/, "");
 
   if (!data || data.length > maximum || !/^[A-Za-z0-9+/]+={0,2}$/.test(data) || data.length % 4 !== 0) {
@@ -66,7 +84,7 @@ export function decodeImageData(input: string, maximum = 14 * 1024 * 1024): stri
 
   const prefix = atob(data.slice(0, 32));
 
-  imageFormat(prefix);
+  sniff(prefix);
 
   return data;
 }
@@ -187,7 +205,8 @@ export function createWorkerProcessor(config: MediaConfig, fetcher: typeof fetch
 
         const image = await readBytes(response, MAX_BINARY_RESULT_BYTES);
         const bodyAt = performance.now();
-        const actual = imageFormat(String.fromCharCode(...image.subarray(0, 32)));
+        const prefix = String.fromCharCode(...image.subarray(0, 32));
+        const actual = heifFormat(prefix) ?? imageFormat(prefix);
         const format = metadata.format === "jpg" ? "jpeg" : metadata.format;
 
         if (requireMask || format !== actual || contentType !== `image/${actual}`) throw new Error("Invalid binary image response");

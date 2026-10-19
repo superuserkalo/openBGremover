@@ -2,9 +2,13 @@ import { Schema } from "effect";
 import { CompressImageRequest, ConvertImageRequest, ImageTransformMetadata, type ImageOperation, type ImageTransformJob } from "@openbg/contracts";
 import { readBytes, readText } from "./body";
 import { ApiError } from "./errors";
-import { createWorkerProcessor, decodeImageData, imageBase64, imageBytes, imageFormat, type MediaConfig } from "./media";
+import { createWorkerProcessor, decodeImageData, heifFormat, imageBase64, imageBytes, imageFormat, type MediaConfig } from "./media";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+function sourceFormat(prefix: string) {
+  return heifFormat(prefix) ?? imageFormat(prefix);
+}
 
 /** Validate format-specific options and upload size before reserving a credit. */
 export async function readImageTransformRequest(request: Request, operation: ImageOperation): Promise<ImageTransformJob> {
@@ -22,16 +26,20 @@ export async function readImageTransformRequest(request: Request, operation: Ima
       ? { ...Schema.decodeUnknownSync(CompressImageRequest)(value, { onExcessProperty: "error" }), format: undefined }
       : Schema.decodeUnknownSync(ConvertImageRequest)(value, { onExcessProperty: "error" });
 
-    const data = decodeImageData(input.image_data, Math.ceil(MAX_UPLOAD_BYTES / 3) * 4);
+    const data = decodeImageData(input.image_data, Math.ceil(MAX_UPLOAD_BYTES / 3) * 4, sourceFormat);
     const decoded = imageBytes(data);
 
     if (decoded.length > MAX_UPLOAD_BYTES) throw new Error("Upload too large");
 
-    const source = imageFormat(String.fromCharCode(...decoded.subarray(0, 32)));
+    const source = sourceFormat(String.fromCharCode(...decoded.subarray(0, 32)));
 
     if (source === "gif") throw new Error("Unsupported input format");
 
-    const requested = input.format ?? source;
+    // Compression keeps the source format. HEIC is input-only, so it can only be converted.
+    const requested = input.format ?? (source === "heic" ? undefined : source);
+
+    if (requested === undefined) throw new Error("HEIC can only be converted");
+
     const format = requested === "jpg" ? "jpeg" : requested;
 
     if ((input.quality !== undefined && format === "png") ||
@@ -42,7 +50,7 @@ export async function readImageTransformRequest(request: Request, operation: Ima
 
     return { ...input, operation, image_data: data, format };
   } catch {
-    throw new ApiError({ code: "INVALID_REQUEST", message: "Provide a JPEG, PNG, or WebP image up to 10 MiB. Conversion requires format. Use quality (1–100) for JPEG/WebP, lossless for WebP, or compression_level (0–9) for PNG", status: 400 });
+    throw new ApiError({ code: "INVALID_REQUEST", message: "Provide a JPEG, PNG, WebP, AVIF, or HEIC image up to 10 MiB; HEIC can only be converted. Conversion requires format (jpeg, png, webp, or avif). Use quality (1–100) for JPEG/WebP/AVIF, lossless for WebP, or compression_level (0–9) for PNG", status: 400 });
   }
 }
 

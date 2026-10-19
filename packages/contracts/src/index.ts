@@ -22,7 +22,8 @@ export const RemoveBackgroundRequest = Schema.Struct({
 
 export type RemoveBackgroundRequest = typeof RemoveBackgroundRequest.Type;
 
-export const StillImageFormat = Schema.Literals(["jpeg", "jpg", "png", "webp"]);
+/** Compression and conversion outputs. HEIC is accepted as input only. */
+export const StillImageFormat = Schema.Literals(["jpeg", "jpg", "png", "webp", "avif"]);
 
 export const ImageOperation = Schema.Literals(["compress-image", "convert-image"]);
 
@@ -54,7 +55,8 @@ export const ImageMetadata = Schema.Struct({
   output_size: Schema.optionalKey(Schema.Array(Schema.Number)),
   processing_time_ms: Schema.optionalKey(Schema.Number),
   quality_used: Schema.optionalKey(Schema.String),
-  format: Schema.optionalKey(ImageFormat),
+  format: Schema.optionalKey(Schema.Union([ImageFormat, StillImageFormat])),
+  encoder: Schema.optionalKey(Schema.String),
   device: Schema.optionalKey(Schema.String),
   is_animated: Schema.optionalKey(Schema.Boolean),
   frame_count: Schema.optionalKey(Schema.Number),
@@ -86,7 +88,7 @@ export const ImageTransformMetadata = Schema.Struct({
 /** Internal worker delivery envelope; the signed URL never reaches API clients. */
 export const WorkerFileDelivery = Schema.Struct({
   url: Schema.String,
-  content_type: Schema.Literals(["image/png", "image/jpeg", "image/webp", "image/gif", "application/json"]),
+  content_type: Schema.Literals(["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "application/json"]),
   metadata: ImageMetadata,
 });
 
