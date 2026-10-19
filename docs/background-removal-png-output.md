@@ -1,10 +1,9 @@
 # Background-removal PNG output: transparent pixels and the size fallback
 
-19 October 2026. Code change only; **not deployed**. It builds on the
-unpromoted imagecodecs candidate in
-[the PNG encoding validation](png-encoding-browser-validation.md), and needs the
-[checkpoint rollout procedure](checkpoint-production-rollout.md) before it
-serves traffic.
+19 October 2026. Deployed the same day as background removal v20, together with
+the previously unpromoted imagecodecs candidate in
+[the PNG encoding validation](png-encoding-browser-validation.md). Verification
+is in [the rollout record](libvips-and-cutout-rollout-2026-10-19.md).
 
 ## Problem
 
