@@ -36,6 +36,30 @@ class OutputTooLarge(ValueError):
     pass
 
 
+def save_bounded(image, saver, maximum, **options):
+    """Encode through a libvips target that aborts once output passes maximum."""
+    output = BoundedOutput(maximum)
+    exceeded = False
+
+    def write(chunk):
+        nonlocal exceeded
+        try:
+            return output.write(chunk)
+        except OutputTooLarge:
+            exceeded = True
+            return -1
+
+    target = pyvips.TargetCustom()
+    target.on_write(write)
+    try:
+        getattr(image, saver)(target, **options)
+    except pyvips.Error:
+        if exceeded:
+            raise OutputTooLarge("Output exceeds the size limit") from None
+        raise
+    return output.getvalue()
+
+
 class BoundedOutput(io.BytesIO):
     def __init__(self, maximum):
         super().__init__()
@@ -167,14 +191,14 @@ def encode(image, output_format, quality, lossless, compression_level, maximum):
         # MozJPEG with trellis quantisation, deringing, scan optimisation, and
         # the ImageMagick quant table, as Squoosh uses it. 4:2:0 is explicit
         # because libvips would switch subsampling off at quality 90 and above.
-        return image.jpegsave_buffer(Q=quality, keep="icc", subsample_mode="on", interlace=True,
-                                     optimize_coding=True, trellis_quant=True, overshoot_deringing=True,
-                                     optimize_scans=True, quant_table=3)
+        return save_bounded(image, "jpegsave_target", maximum, Q=quality, keep="icc", subsample_mode="on",
+                            interlace=True, optimize_coding=True, trellis_quant=True,
+                            overshoot_deringing=True, optimize_scans=True, quant_table=3)
     if output_format == "png":
         # libvips' default row filter is none, which makes photos much larger.
-        return image.pngsave_buffer(compression=compression_level, filter="all", keep="icc")
+        return save_bounded(image, "pngsave_target", maximum, compression=compression_level, filter="all", keep="icc")
     if output_format == "webp":
-        return image.webpsave_buffer(Q=quality, lossless=lossless, effort=4, exact=True, keep="icc")
+        return save_bounded(image, "webpsave_target", maximum, Q=quality, lossless=lossless, effort=4, exact=True, keep="icc")
     mode = "RGBA" if image.hasalpha() else "RGB"
     pillow = Image.frombuffer(mode, (image.width, image.height), image.write_to_memory(), "raw", mode, 0, 1)
     options = {"quality": quality, "speed": 6, "subsampling": "4:2:0"}
@@ -219,8 +243,6 @@ def transform_image(image_data, operation, format, quality=None, lossless=None, 
         encoded = raw
     except pyvips.Error as error:
         raise ValueError("Invalid image") from error
-    if len(encoded) > maximum and operation != "compress-image":
-        raise OutputTooLarge("Output exceeds the size limit")
     retained = operation == "compress-image" and len(encoded) >= len(raw)
     if retained:
         encoded = raw
