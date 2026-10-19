@@ -31,19 +31,37 @@ class ImagePipelineTests(unittest.TestCase):
         self.assertEqual(result.mode, "RGBA")
         self.assertEqual(result.tobytes(), image.tobytes())
 
-    def test_fast_png_size_fallback_keeps_original_encoder_and_metadata(self):
+    def test_png_size_fallback_is_lossless_and_keeps_only_the_icc_profile(self):
         pixels = np.random.default_rng(7).integers(0, 256, (2048, 2048, 4), dtype=np.uint8)
         image = Image.fromarray(pixels)
-        reference = encode(image, "png")
-        self.assertGreater(len(reference), 12 * 1024 * 1024)
         result = encode(image, "png", fast_png=True)
-        self.assertEqual(result, reference)
+        self.assertEqual(result, encode(image, "png"))
+        self.assertEqual(Image.open(io.BytesIO(result)).tobytes(), image.tobytes())
         image = Image.new("RGBA", (97, 131), (29, 83, 151, 127))
         image.info["icc_profile"] = b"profile preserved verbatim"
         image.info["exif"] = Image.Exif().tobytes()
-        result = Image.open(io.BytesIO(encode(image, "png", fast_png=True)))
-        self.assertEqual(result.info["icc_profile"], image.info["icc_profile"])
-        self.assertEqual(result.tobytes(), image.tobytes())
+        for fast in (True, False):
+            with self.subTest(fast=fast):
+                result = Image.open(io.BytesIO(encode(image, "png", fast_png=fast)))
+                result.load()
+                self.assertEqual(result.info["icc_profile"], image.info["icc_profile"])
+                self.assertNotIn("exif", result.info)
+                self.assertEqual(result.tobytes(), image.tobytes())
+
+    def test_removed_background_does_not_survive_under_transparent_pixels(self):
+        image = Image.new("RGB", (4, 1), (200, 120, 40))
+        alpha = [0, 1, 128, 255]
+        mask = lambda frame: Image.frombytes("L", frame.size, bytes(alpha))
+        # Lossy WebP is excluded: libwebp fills transparent pixels from visible
+        # neighbours to compress better, so they are not the source samples.
+        for format in ["png", "gif"]:
+            with self.subTest(format=format):
+                result = process_image(encoded(image), mask, format, binary=True)
+                output = Image.open(io.BytesIO(result["image"])).convert("RGBA")
+                self.assertEqual(output.getpixel((0, 0))[:3], (0, 0, 0))
+                if format == "png":
+                    self.assertEqual(list(output.get_flattened_data()),
+                                     [(0, 0, 0, 0), (200, 120, 40, 1), (200, 120, 40, 128), (200, 120, 40, 255)])
 
     def test_binary_transport_preserves_pixels_alpha_and_dimensions(self):
         image = Image.new("RGBA", (2048, 1536), (18, 92, 203, 191))

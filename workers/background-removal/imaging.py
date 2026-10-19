@@ -1,7 +1,9 @@
 """Image decoding and encoding, independent of Beam and the model runtime."""
 import base64
 import io
+import struct
 import time
+import zlib
 from collections.abc import Callable
 
 import imagecodecs
@@ -34,23 +36,55 @@ def output_size(size: tuple[int, int], resize: dict | None) -> tuple[int, int]:
     return max(1, round(size[0] * scale)), max(1, round(size[1] * scale))
 
 
+def png_chunk(kind: bytes, data: bytes) -> bytes:
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+
+def encode_png(image: Image.Image, fast: bool) -> bytes:
+    """Lossless PNG with the same pixels and ICC profile Pillow would write.
+
+    Pillow writes no EXIF to PNG unless asked, so the ICC profile is the only
+    ancillary chunk to carry. Level 3 with UP filtering is fastest; level 6 with
+    adaptive filtering is smaller than Pillow's level 6 and about four times
+    faster on one core, so it is both the size fallback and the JSON encoding.
+    """
+    array = np.asarray(image)
+    icc = image.info.get("icc_profile")
+    # Pillow names the profile "ICC Profile" and uses zlib, compression method 0.
+    icc_chunk = png_chunk(b"iCCP", b"ICC Profile\0\0" + zlib.compress(icc)) if icc else b""
+    result = imagecodecs.png_encode(array, level=3, filter=imagecodecs.PNG.FILTER.UP) if fast else b""
+    if not result or len(result) + len(icc_chunk) > MAX_BINARY_RESULT_BYTES:
+        result = imagecodecs.png_encode(array, level=6, filter=imagecodecs.PNG.FILTER.ALL)
+    # IHDR is always first: 8-byte signature plus its 25-byte chunk.
+    return result[:33] + icc_chunk + result[33:]
+
+
 def encode(image: Image.Image, output_format: str, fast_png: bool = False) -> bytes:
     buffer = io.BytesIO()
     if output_format in {"jpg", "jpeg"}:
         background = Image.new("RGB", image.size, "white")
         background.paste(image, mask=image.getchannel("A"))
         background.save(buffer, "JPEG", quality=95)
-    elif output_format == "png" and fast_png and not any(key in image.info for key in ("icc_profile", "exif", "transparency")):
-        # UP filtering and compression level 3 preserve every RGBA sample while
-        # avoiding Pillow's adaptive filter search. Keep the original encoder
-        # as a size fallback so a faster encoding cannot reject a fitting image.
-        result = imagecodecs.png_encode(np.asarray(image), level=3, filter=imagecodecs.PNG.FILTER.UP)
-        if len(result) <= MAX_BINARY_RESULT_BYTES:
-            return result
-        image.save(buffer, "PNG", compress_level=6)
+    elif output_format == "png" and image.mode in {"RGBA", "L"} and "transparency" not in image.info:
+        return encode_png(image, fast_png)
     else:
         image.save(buffer, output_format.upper())
     return buffer.getvalue()
+
+
+def clear_transparent(image: Image.Image) -> Image.Image:
+    """Zero RGB under fully transparent pixels.
+
+    Otherwise the removed background survives in invisible samples: anyone can
+    recover it by discarding alpha, and it dominates the encoded size (a 12 MP
+    photo cutout exceeds the 12 MiB result limit at any PNG level). Soft alpha
+    and every visible pixel are unchanged.
+    """
+    array = np.array(image)
+    array[array[..., 3] == 0, :3] = 0
+    cleared = Image.fromarray(array, "RGBA")
+    cleared.info.update(image.info)
+    return cleared
 
 
 def process_image(encoded: str, infer_mask: Callable[[Image.Image], Image.Image],
@@ -93,7 +127,7 @@ def process_image(encoded: str, infer_mask: Callable[[Image.Image], Image.Image]
         # Existing transparent pixels must never become opaque again.
         mask = ImageChops.multiply(mask, rgba.getchannel("A"))
         rgba.putalpha(mask)
-        results.append(rgba if target == rgba.size else rgba.resize(target, Image.Resampling.LANCZOS))
+        results.append(clear_transparent(rgba if target == rgba.size else rgba.resize(target, Image.Resampling.LANCZOS)))
         durations.append(frame.info.get("duration", 100))
 
     encoding_started = time.monotonic()
