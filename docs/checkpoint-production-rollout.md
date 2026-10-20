@@ -44,10 +44,10 @@ These are rollout checks with the same 512×512 static image used in the compari
 
 1. Deploy `app.py:remove_background` from `workers/background-removal` using the project's `.venv/bin/beam` CLI. Keep the checkpoint flag, warmed loader and 60-second policy together.
 2. Call the new version directly with an authenticated test image. Verify output and successful checkpoint capture in its lifecycle logs before updating customer-facing APIs. Snapshot preparation can take substantially longer than restore.
-3. Update `BEAM_ENDPOINT_URL` in `apps/api/wrangler.jsonc`, regenerate Worker types and deploy the Cloudflare API. Update the same variable on the legacy Cloud Run service while it remains in use.
-4. Run `npm run test:e2e`, then the latency runner with the new stub ID. Confirm zero containers before labeling a request cold, inspect restore logs and test both website and compatibility upload routes.
+3. Update `BEAM_ENDPOINT_URL` in `apps/api/wrangler.jsonc`, regenerate Worker types and deploy the Cloudflare API. Do not update the retired Cloud Run service; see [the Cloud Run mistake](libvips-and-cutout-rollout-2026-10-19.md#mistake-trying-to-update-the-legacy-cloud-run-service).
+4. Run `npm run test:e2e`, then the latency runner with the new stub ID. Confirm zero containers before labeling a request cold, inspect restore logs and test the website upload route.
 5. Stop the replaced Beam deployment after verification. Keep its deployment record for rollback; do not delete cached model files as part of deployment cleanup.
 
-The historical v10-to-v9 rollback used deployment `3d8265d0-85de-4cc2-8b72-b346202956a3`, whose v9 endpoint has the 60-second window but no checkpoints. To revert current one-core production, restart v10 deployment `69afce53-7a54-4af5-8e31-5b99546d1a80`, verify its output, and switch both APIs to its endpoint. The [historical v11-to-v10 rollback](beam-one-core-rollout.md#evidence-and-historical-rollback) preserves the warmed checkpoint strategy.
+The historical v10-to-v9 rollback used deployment `3d8265d0-85de-4cc2-8b72-b346202956a3`, whose v9 endpoint has the 60-second window but no checkpoints. To revert current one-core production, restart v10 deployment `69afce53-7a54-4af5-8e31-5b99546d1a80`, verify its output, and switch the Cloudflare API to its endpoint. The [historical v11-to-v10 rollback](beam-one-core-rollout.md#evidence-and-historical-rollback) preserves the warmed checkpoint strategy.
 
 Ignored local evidence is under `artifacts/deployments/checkpoint-v10/`: preflight image/mask and report, `e2e-report.json`, `latency/report.json`, `summary.json`, Beam logs/task records, route checks and final deployment/container state.

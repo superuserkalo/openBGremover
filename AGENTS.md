@@ -106,8 +106,9 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
   [the latest CPU decision and rollout](docs/beam-one-core-rollout.md).
   Prepare and verify a new checkpoint before routing customer traffic to it.
   Keep inference warmup, checkpoints, the 60-second idle window, and scale-to-zero
-  unless the task explicitly changes them. Verify both API routes while the
-  legacy Cloud Run compatibility service remains in use.
+  unless the task explicitly changes them. The production API is the
+  Cloudflare Worker in `apps/api`; the Go API and its Cloud Run service are
+  retired, so never include Cloud Run in a rollout.
 - Keep 8 GiB host RAM. For CPU sizing, prioritize cold-start latency over warm
   processing speed. A cheaper allocation needs a controlled cold comparison
   before promotion; do not justify a cold regression with warm-path savings.

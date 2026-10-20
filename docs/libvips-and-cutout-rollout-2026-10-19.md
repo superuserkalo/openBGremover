@@ -104,11 +104,14 @@ What should happen instead:
 
 1. Check the service's recent request logs (read-only) for real traffic.
 2. If there is none, delete the service, stop Beam v18
-   (`e0a2747a-637d-41f9-865e-d86e25474016`), and remove the legacy Cloud Run
-   steps from `AGENTS.md` and the rollout procedure.
+   (`e0a2747a-637d-41f9-865e-d86e25474016`).
+   The owner will handle the service itself.
 3. If a client still calls it, move that client to the Cloudflare API first.
 
-None of these steps had been taken when this record was written.
+On 21 October 2026 the Cloud Run steps were removed from `AGENTS.md` and
+[the checkpoint rollout procedure](checkpoint-production-rollout.md), so
+future rollouts touch only the Cloudflare API. The service and Beam v18 were
+still running at that point.
 
 Private deployment logs are under ignored
 `artifacts/deployments/libvips-2026-10-19/`.
