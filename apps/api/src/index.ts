@@ -14,7 +14,12 @@ export default {
         ? createImageProcessor({ endpoint: env.IMAGE_PROCESSING_ENDPOINT_URL, apiKey: env.BEAM_API_KEY, outputUrlPrefix: env.BEAM_OUTPUT_URL_PREFIX })
         : undefined,
       allowedOrigins: env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()),
-      allowTrial: async () => (await env.TRIAL_LIMITER.limit({ key: "public-demo" })).success,
+      // GPU inference keeps its own small budget so cheap CPU demos cannot exhaust it.
+      allowTrial: async (operation) => {
+        const limiter = operation === "remove-background" ? env.TRIAL_LIMITER : env.TRIAL_IMAGE_LIMITER;
+
+        return (await limiter.limit({ key: "public-demo" })).success;
+      },
       async withDatabase(use) {
         const client = new Client({ connectionString: env.DATABASE.connectionString, connectionTimeoutMillis: 10_000, statement_timeout: 10_000 });
 

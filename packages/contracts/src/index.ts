@@ -29,6 +29,11 @@ export const ImageOperation = Schema.Literals(["compress-image", "convert-image"
 
 export type ImageOperation = typeof ImageOperation.Type;
 
+/** Every processing route, including the ones the public website demo may call. */
+export const MediaOperation = Schema.Literals(["remove-background", "compress-image", "convert-image"]);
+
+export type MediaOperation = typeof MediaOperation.Type;
+
 const EncodingOptions = {
   quality: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))),
   lossless: Schema.optionalKey(Schema.Boolean),

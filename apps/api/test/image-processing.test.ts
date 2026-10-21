@@ -35,7 +35,7 @@ const cpu = vi.fn<typeof fetch>();
 
 const gpu = vi.fn<typeof fetch>();
 
-function handler(enabled = true) {
+function handler(enabled = true, allowTrial: (operation: string) => Promise<boolean> = async () => true) {
   return createHandler({
     auth: { verify: async (token) => {
       if (token !== "session") throw new ApiError({ code: "INVALID_TOKEN", message: "Invalid session", status: 401 });
@@ -45,7 +45,7 @@ function handler(enabled = true) {
     withDatabase: (use) => use(database),
     process: createProcessor({ endpoint: "https://gpu.example/run", apiKey: "secret", outputUrlPrefix: "https://files.example/workspace/" }, gpu),
     processImage: enabled ? createImageProcessor({ endpoint: "https://cpu.example/run", apiKey: "secret", outputUrlPrefix: "https://files.example/workspace/" }, cpu) : undefined,
-    allowedOrigins: ["https://web.example"], allowTrial: async () => true,
+    allowedOrigins: ["https://web.example"], allowTrial,
   });
 }
 
@@ -272,7 +272,7 @@ describe("image compression/conversion through the authenticated API", () => {
     expect((await database.activity(USER, 20, 0)).every((row) => !row.was_successful)).toBe(true);
   });
 
-  it("supports owned API keys and rejects revoked keys and trial access", async () => {
+  it("supports owned API keys and rejects revoked keys", async () => {
     const key = "bg_user_test";
     const id = await database.createKey(USER, "Image client", await hashKey(key), "bg_user");
     const handle = handler();
@@ -280,17 +280,52 @@ describe("image compression/conversion through the authenticated API", () => {
     expect((await handle(request("compress-image", undefined, key))).status).toBe(200);
     await database.deleteKey(USER, id);
     expect((await handle(request("compress-image", undefined, key))).status).toBe(401);
-    await sql.query("INSERT INTO api_keys (key_name, hashed_key, key_prefix, is_service, scopes) VALUES ('trial', $1, 'bg_trial', true, ARRAY['trial'])", [await hashKey("bg_trial")]);
 
     for (const operation of ["compress-image", "convert-image"]) {
-      const input = request(operation, undefined, "bg_trial");
-
-      input.headers.set("X-Usage-Context", "trial");
-      expect((await handle(input)).status).toBe(403);
       expect((await handle(new Request(`https://api.example/api/v1/${operation}`, { method: "POST" }))).status).toBe(401);
     }
 
     expect(cpu).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves the public demo through the trial key without charging, under its own rate limit", async () => {
+    await sql.query("INSERT INTO api_keys (key_name, hashed_key, key_prefix, is_service, scopes) VALUES ('trial', $1, 'bg_trial', true, ARRAY['trial'])", [await hashKey("bg_trial")]);
+    const limited: string[] = [];
+    let open = true;
+
+    const handle = handler(true, async (operation) => {
+      limited.push(operation);
+
+      return open;
+    });
+
+    const trial = (operation: string, body = JSON.stringify({ image_data: PNG })) => {
+      const input = request(operation, body, "bg_trial", true);
+
+      input.headers.set("X-Usage-Context", "trial");
+
+      return input;
+    };
+
+    cpu.mockImplementation(async (_url, init) => output(JSON.parse(String(init?.body)).operation));
+    expect((await handle(trial("compress-image"))).status).toBe(200);
+    expect((await handle(trial("convert-image", JSON.stringify({ image_data: PNG, format: "png" })))).status).toBe(200);
+    expect(limited).toEqual(["compress-image", "convert-image"]);
+
+    // Invalid input is rejected before the limiter or the worker sees it.
+    expect((await handle(trial("convert-image"))).status).toBe(400);
+    expect(limited).toHaveLength(2);
+
+    open = false;
+    expect((await handle(trial("compress-image"))).status).toBe(429);
+    expect(cpu).toHaveBeenCalledTimes(2);
+
+    // The trial key still needs the trial context and cannot manage accounts.
+    expect((await handle(request("compress-image", undefined, "bg_trial"))).status).toBe(403);
+    const keys = new Request("https://api.example/api/v1/keys", { headers: { Authorization: "Bearer bg_trial", "X-Usage-Context": "trial" } });
+
+    expect((await handle(keys)).status).toBe(403);
+    expect(await database.stats(USER)).toMatchObject({ api_calls_total: 0, free_credits_remaining: 1, bulk_credits_remaining: 1 });
   });
 
   it("does not charge when the CPU endpoint has not been configured", async () => {

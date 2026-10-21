@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { CreateKeyRequest, type RemoveBackgroundResponse } from "@openbg/contracts";
+import { CreateKeyRequest, type MediaOperation, type RemoveBackgroundResponse } from "@openbg/contracts";
 import { bearerToken, generateKey, hashKey, type createAuth } from "./auth";
 import { readText } from "./body";
 import type { Database } from "./database";
@@ -14,11 +14,16 @@ export interface Dependencies {
   process: Processor;
   processImage: ImageProcessor | undefined;
   allowedOrigins: readonly string[];
-  allowTrial: () => Promise<boolean>;
+  /** Rate-limits the public demo per operation; trial requests are never charged. */
+  allowTrial: (operation: MediaOperation) => Promise<boolean>;
 }
 
 function invalidRequest(message: string): ApiError {
   return new ApiError({ code: "INVALID_REQUEST", message, status: 400 });
+}
+
+function trialBusy(): ApiError {
+  return new ApiError({ code: "RATE_LIMITED", message: "The demo is busy. Please try again in a minute", status: 429 });
 }
 
 function pagination(value: string | null, fallback: number, maximum: number): number {
@@ -109,8 +114,6 @@ export function createHandler(deps: Dependencies) {
       const identity = await identify(request, db, sessionUserId);
 
       if (routeKey === "POST /api/v1/compress-image" || routeKey === "POST /api/v1/convert-image") {
-        if (identity.kind === "trial") throw new ApiError({ code: "FORBIDDEN", message: "Trial keys are restricted to background removal", status: 403 });
-
         const process = deps.processImage;
 
         if (!process) throw new ApiError({ code: "PROCESSING_UNAVAILABLE", message: "Image compression and conversion are not configured", status: 503 });
@@ -118,6 +121,8 @@ export function createHandler(deps: Dependencies) {
         const operation = routeKey === "POST /api/v1/compress-image" ? "compress-image" : "convert-image";
         const input = await readImageTransformRequest(request, operation);
         const binary = request.headers.get("accept")?.split(",").some((value) => value.trim() === "image/*") === true;
+
+        if (identity.kind === "trial" && !(await deps.allowTrial(operation))) throw trialBusy();
 
         return Effect.runPromise(processImage(identity, db, () => process(input)).pipe(Effect.match({
           onFailure: errorResponse,
@@ -129,9 +134,7 @@ export function createHandler(deps: Dependencies) {
         const input = await readImageRequest(request);
         const binary = identity.kind === "trial" || (!input.return_mask && request.headers.get("accept")?.split(",").some((value) => value.trim() === "image/*") === true);
 
-        if (identity.kind === "trial" && !(await deps.allowTrial())) {
-          throw new ApiError({ code: "RATE_LIMITED", message: "The demo is busy. Please try again in a minute", status: 429 });
-        }
+        if (identity.kind === "trial" && !(await deps.allowTrial("remove-background"))) throw trialBusy();
 
         return Effect.runPromise(removeBackground(input, identity, db, deps.process).pipe(Effect.match({
           onFailure: errorResponse,
