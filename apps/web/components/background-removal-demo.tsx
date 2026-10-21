@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Match } from "effect";
 import {
+  ArrowLeftRight,
   ArrowRight,
   Download,
   Loader2,
@@ -48,79 +49,75 @@ export function ImageComparison({
   resultLabel?: string;
 }) {
   const [position, setPosition] = useState(50);
-  const id = useId().replace(/:/g, "");
+  // Natural width / height of the original, so the frame takes the image's shape instead of letterboxing it.
+  const [ratio, setRatio] = useState(4 / 3);
+  const frame = useRef<HTMLDivElement>(null);
+  const originalImage = useRef<HTMLImageElement>(null);
+
+  function measure() {
+    const image = originalImage.current;
+
+    if (image && image.naturalWidth > 0 && image.naturalHeight > 0) setRatio(image.naturalWidth / image.naturalHeight);
+  }
+
+  // A cached image can finish loading before hydration attaches onLoad, so also measure on mount.
+  useEffect(measure, [original]);
+
+  function moveTo(clientX: number) {
+    const rect = frame.current?.getBoundingClientRect();
+
+    if (!rect || rect.width === 0) return;
+    setPosition(Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)));
+  }
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
-      <svg
-        viewBox="0 0 512 440"
-        role="img"
-        aria-label={label}
-        className="block aspect-[512/440] w-full"
-      >
-        <defs>
-          <pattern
-            id={`${id}-grid`}
-            width="24"
-            height="24"
-            patternUnits="userSpaceOnUse"
-          >
-            <rect width="24" height="24" fill="#fafafa" />
-            <path d="M0 0H12V12H0ZM12 12H24V24H12Z" fill="#eaeaea" />
-          </pattern>
-          <clipPath id={`${id}-clip`}>
-            <rect width={(512 * position) / 100} height="440" />
-          </clipPath>
-        </defs>
-        <rect width="512" height="440" fill={`url(#${id}-grid)`} />
-        <image
-          href={result}
-          width="512"
-          height="440"
-          preserveAspectRatio="xMidYMid meet"
-        />
-        <image
-          href={original}
-          width="512"
-          height="440"
-          preserveAspectRatio="xMidYMid meet"
-          clipPath={`url(#${id}-clip)`}
-        />
-        <line
-          x1={(512 * position) / 100}
-          x2={(512 * position) / 100}
-          y1="0"
-          y2="440"
-          stroke="white"
-          strokeWidth="2"
-        />
-        <circle
-          cx={(512 * position) / 100}
-          cy="220"
-          r="18"
-          fill="white"
-          stroke="#e5e5e5"
-        />
-        <path
-          d={`M${(512 * position) / 100 - 4} 215l-5 5 5 5M${(512 * position) / 100 + 4} 215l5 5-5 5`}
-          fill="none"
-          stroke="#262626"
-          strokeWidth="1.5"
-        />
-      </svg>
+    <div
+      ref={frame}
+      role="img"
+      aria-label={label}
+      className="relative mx-auto touch-none overflow-hidden rounded-lg border border-border bg-[#fafafa] bg-[length:24px_24px] bg-[image:conic-gradient(#eaeaea_25%,transparent_0_50%,#eaeaea_0_75%,transparent_0)] cursor-ew-resize select-none"
+      style={{ aspectRatio: ratio, width: `min(100%, calc(70vh * ${ratio}))` }}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        moveTo(event.clientX);
+      }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) moveTo(event.clientX);
+      }}
+    >
+      <img src={result} alt="" draggable={false} className="absolute inset-0 size-full object-contain" />
+      <img
+        src={original}
+        alt=""
+        draggable={false}
+        ref={originalImage}
+        onLoad={measure}
+        className="absolute inset-0 size-full object-contain"
+        style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+      />
       <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-between text-xs">
         <span className="rounded bg-card/90 px-2 py-1">Original</span>
         <span className="rounded bg-card/90 px-2 py-1">{resultLabel}</span>
       </div>
+      {/* Keyboard and screen-reader control; pointer input is handled by the frame above. */}
       <input
         type="range"
         min="0"
         max="100"
-        value={position}
+        value={Math.round(position)}
         onChange={(event) => setPosition(Number(event.target.value))}
         aria-label={`Compare original and ${resultLabel.toLowerCase()} image`}
-        className="absolute inset-0 size-full cursor-ew-resize opacity-0 focus:opacity-100 focus:accent-primary"
+        className="peer pointer-events-none absolute inset-0 size-full opacity-0"
       />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_4px_rgba(0,0,0,0.25)] peer-focus-visible:[&>span]:ring-2 peer-focus-visible:[&>span]:ring-ring"
+        style={{ left: `${position}%` }}
+      >
+        <span className="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white text-neutral-800 shadow-lg">
+          <ArrowLeftRight className="size-4" />
+        </span>
+      </div>
     </div>
   );
 }
