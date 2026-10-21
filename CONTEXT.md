@@ -25,3 +25,17 @@ _Avoid_: Setting, parameter, flag
 **Client surface**:
 One of the ways a caller reaches the platform: website, HTTP API, SDK, CLI, or MCP. Every surface exposes the same options.
 _Avoid_: Channel, integration
+
+### Accounts and work
+
+**Workspace**:
+The owner of jobs, usage, and API keys. Every user gets a personal workspace at signup; teams later share one.
+_Avoid_: Project, team, organization, account (when meaning the owner of work)
+
+**API key**:
+A secret that lets a caller act for one workspace, limited by its preset (Full, Read-only, or Restricted) and optional spending and rate limits.
+_Avoid_: Token (when meaning an API key), secret
+
+**Job**:
+One requested operation on one input, from submission to its result. Every operation runs as a job; usage and charges are recorded per job.
+_Avoid_: Task, request (when meaning the unit of work), prediction
