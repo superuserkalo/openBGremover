@@ -54,93 +54,152 @@
 }
 
 /* Composer operation icons replay a short gesture when their tab is selected. */
+.operation-icon {
+  overflow: visible;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  [role="tab"][data-state="active"] .operation-icon path {
+    transform-box: fill-box;
+  }
+
   [role="tab"][data-state="active"] .operation-icon[data-op="remove"] path:nth-child(5) {
-    stroke-dasharray: 10;
-    animation: operation-draw-10 420ms cubic-bezier(0.22, 0.68, 0, 1) backwards;
+    stroke-dasharray: 1 2;
+    animation: operation-trace 1200ms cubic-bezier(0.45, 0, 0.25, 1) both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="compress"] path:nth-child(-n + 2) {
-    animation: operation-in-top-right 380ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-squeeze-top-right 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="compress"] path:nth-child(n + 3) {
-    animation: operation-in-bottom-left 380ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-squeeze-bottom-left 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(1), :nth-child(3)) {
-    animation: operation-out-bottom-right 420ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-out-bottom-right 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(2), :nth-child(4)) {
-    animation: operation-out-top-right 420ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-out-top-right 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(5), :nth-child(6)) {
-    animation: operation-out-bottom-left 420ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-out-bottom-left 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(7), :nth-child(8)) {
-    animation: operation-out-top-left 420ms cubic-bezier(0.22, 0.68, 0, 1);
+    animation: operation-out-top-left 900ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="convert"] {
-    animation: operation-spin 600ms cubic-bezier(0.65, 0, 0.35, 1);
+    animation: operation-spin 1000ms cubic-bezier(0.65, 0, 0.35, 1) both;
   }
 
+  /* The middle line scans down and redraws; the outer lines draw in around it. */
   [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(5) {
-    stroke-dasharray: 8;
-    animation: operation-draw-8 240ms ease-out backwards;
+    animation: operation-draw 480ms cubic-bezier(0.33, 0, 0.2, 1) 760ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(6) {
-    stroke-dasharray: 10;
-    animation: operation-draw-10 260ms ease-out 140ms backwards;
+    animation: operation-scan 1500ms both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(7) {
-    stroke-dasharray: 6;
-    animation: operation-draw-6 220ms ease-out 280ms backwards;
+    animation: operation-draw 480ms cubic-bezier(0.33, 0, 0.2, 1) 1080ms both;
   }
 }
 
-@keyframes operation-draw-6 {
-  from { stroke-dashoffset: 6; }
+/* Scan from the top edge to the bottom edge, fade out, then redraw left to right in place. */
+@keyframes operation-scan {
+  0% {
+    transform: translateY(-6px);
+    clip-path: inset(0);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  50% {
+    transform: translateY(6px);
+    clip-path: inset(0);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  58% {
+    transform: translateY(6px);
+    clip-path: inset(0);
+    opacity: 0;
+  }
+  59% {
+    transform: none;
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+  }
+  60% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  100% {
+    transform: none;
+    clip-path: inset(0);
+    opacity: 1;
+  }
+}
+
+@keyframes operation-trace {
+  /* Start just past the full length so the round cap leaves no dot before drawing. */
+  from { stroke-dashoffset: 1.1; }
   to { stroke-dashoffset: 0; }
 }
 
-@keyframes operation-draw-8 {
-  from { stroke-dashoffset: 8; }
-  to { stroke-dashoffset: 0; }
+@keyframes operation-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
 }
 
-@keyframes operation-draw-10 {
-  from { stroke-dashoffset: 10; }
-  to { stroke-dashoffset: 0; }
+/* Start wider apart, close in just past rest without touching, settle back to rest. */
+@keyframes operation-squeeze-top-right {
+  0% {
+    transform: translate(1.5px, -1.5px);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  60% {
+    transform: translate(-0.75px, 0.75px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  100% { transform: translate(0, 0); }
 }
 
-@keyframes operation-in-top-right {
-  45% { transform: translate(-2.5px, 2.5px); }
-}
-
-@keyframes operation-in-bottom-left {
-  45% { transform: translate(2.5px, -2.5px); }
+@keyframes operation-squeeze-bottom-left {
+  0% {
+    transform: translate(-1.5px, 1.5px);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  60% {
+    transform: translate(0.75px, -0.75px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  100% { transform: translate(0, 0); }
 }
 
 @keyframes operation-out-top-right {
-  45% { transform: translate(2px, -2px); }
+  0%, 100% { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  45% { transform: translate(1.5px, -1.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
 }
 
 @keyframes operation-out-bottom-right {
-  45% { transform: translate(2px, 2px); }
+  0%, 100% { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  45% { transform: translate(1.5px, 1.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
 }
 
 @keyframes operation-out-bottom-left {
-  45% { transform: translate(-2px, 2px); }
+  0%, 100% { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  45% { transform: translate(-1.5px, 1.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
 }
 
 @keyframes operation-out-top-left {
-  45% { transform: translate(-2px, -2px); }
+  0%, 100% { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  45% { transform: translate(-1.5px, -1.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
 }
 
 @keyframes operation-spin {
