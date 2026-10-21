@@ -95,7 +95,18 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
   Commit surgically: one logical change per commit, staging explicit paths
   (`git add <path>...`, never `git add -A` or `git add .`), with a message that
   says what changed and why. Do not stage unrelated changes or ignored files.
-  Push only when asked.
+- Ship every finished change without waiting to be asked: once its checks
+  pass, commit, push `master`, and deploy whatever it touched, then verify the
+  live result. Deploy in dependency order:
+  1. **Beam workers** (`workers/*`): follow the rollout procedure below and
+     verify the new version directly before pointing the API at it.
+  2. **API** (`apps/api`): `npm run types -w @openbg/api` if `wrangler.jsonc`
+     changed, then `npm run deploy -w @openbg/api`.
+  3. **Website** (`apps/web`): pushing `master` deploys it through Vercel; wait
+     for the deployment and CI to pass.
+  Record deployed versions and the previous version for rollback in `docs/`.
+  Never push or deploy failing checks. Production database migrations and
+  deleting provider resources still need explicit confirmation first.
 - For TypeScript changes, run `npm run check` and the affected app build. For
   Python image handling, run the image-pipeline unittest command in the README.
   Exercise changed behavior and failure paths. Use PGlite for SQL tests and
