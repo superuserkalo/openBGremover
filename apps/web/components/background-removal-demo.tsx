@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Match } from "effect";
 import {
   ArrowRight,
@@ -147,6 +147,8 @@ export function BackgroundRemovalDemo({
   const [compressionLevel, setCompressionLevel] = useState<number | undefined>(undefined);
   const optionsId = useId();
   const request = useRef<AbortController | null>(null);
+  const tabList = useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = useState<{ x: number; width: number } | null>(null);
   const busy = state.status === "processing";
   const transform = tool === "compress" || tool === "convert";
   const outputFormat = tool === "compress" && file ? sourceImageFormat(file) : format;
@@ -160,6 +162,25 @@ export function BackgroundRemovalDemo({
   }, []);
 
   useEffect(() => () => request.current?.abort(), []);
+  useLayoutEffect(() => {
+    const list = tabList.current;
+
+    if (!list) return;
+
+    const measure = () => {
+      const active = list.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
+
+      if (active) setIndicator({ x: active.offsetLeft, width: active.offsetWidth });
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(measure);
+
+    observer.observe(list);
+
+    return () => observer.disconnect();
+  }, [tool]);
   useEffect(
     () => () => {
       if (original) URL.revokeObjectURL(original);
@@ -403,11 +424,18 @@ export function BackgroundRemovalDemo({
           )}
           <div className="flex items-center gap-2 border-t border-border p-3">
             <TooltipProvider delayDuration={180}>
-              <TabsList className="h-11 min-w-0 flex-1 justify-start gap-0 overflow-x-auto rounded-xl bg-muted/70 p-1 [scrollbar-width:none]">
+              <TabsList ref={tabList} className="relative isolate h-11 min-w-0 flex-1 justify-start gap-0 overflow-x-auto rounded-xl bg-muted/70 p-1.5 [scrollbar-width:none]">
+                {indicator && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-1.5 left-0 -z-10 rounded-md bg-card shadow-sm transition-[transform,width] duration-[280ms] ease-[cubic-bezier(0.22,0.68,0,1)] motion-reduce:transition-none"
+                    style={{ width: indicator.width, transform: `translateX(${indicator.x}px)` }}
+                  />
+                )}
                 {mediaOperations.map(item => (
                   <Tooltip key={item.id}>
                     <TooltipTrigger asChild>
-                      <TabsTrigger value={item.id} data-state={tool === item.id ? "active" : "inactive"} disabled={busy} className="h-9 min-w-16 shrink-0 flex-none gap-1.5 rounded-lg px-2 text-xs sm:flex-1 text-muted-foreground sm:text-sm data-[state=active]:text-foreground border-0 data-[state=active]:bg-card dark:data-[state=active]:bg-card focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none [&[data-state=active]>svg]:text-primary">
+                      <TabsTrigger value={item.id} data-state={tool === item.id ? "active" : "inactive"} disabled={busy} className="h-8 min-w-16 shrink-0 flex-none gap-1.5 rounded-md px-2 text-xs sm:flex-1 text-muted-foreground sm:text-sm data-[state=active]:text-foreground border-0 data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none [&[data-state=active]>svg]:text-primary">
                         <item.icon className="hidden size-4 sm:block" />
                         {item.short}
                       </TabsTrigger>
