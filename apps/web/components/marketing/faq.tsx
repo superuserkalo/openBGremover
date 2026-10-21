@@ -16,7 +16,7 @@ const questions = [
   {
     question: "Can I try it without an account?",
     answer:
-      "Yes. Upload an image in the playground to try background removal. The public demo is rate limited. Create an account to manage API keys and view your usage.",
+      "Yes. Upload an image in the playground to remove a background, compress, or convert it. The public demo is rate limited. Create an account to manage API keys and view your usage.",
   },
   {
     question: "Which files can I upload?",

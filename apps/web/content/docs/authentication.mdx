@@ -31,6 +31,6 @@ Key creation, key listing, key revocation, and account deletion require a sessio
 
 ## Public demo
 
-The public background-removal demo uses a server-only trial key and rate limiting. That key stays on the server and is restricted to trial requests. Compression and conversion require sign-in in the playground.
+The playground works without an account. Signed out, background removal, compression, and conversion go through the website's server, which adds a trial key that never reaches the browser. Trial requests are free and rate limited: background removal allows 5 requests a minute and compression and conversion 30, shared by every signed-out visitor. The trial key cannot manage keys or accounts. Signed in, the playground uses your session and your credits.
 
 Missing or invalid credentials return 401. Insufficient scope returns 403. See [errors and retries](/docs/errors).

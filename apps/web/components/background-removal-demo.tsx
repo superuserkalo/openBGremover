@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Match, Schema } from "effect";
-import { ApiFailure } from "@openbg/contracts";
+import { Match } from "effect";
 import {
   ArrowRight,
   Download,
@@ -22,7 +21,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { mediaOperations } from "@/lib/media-operations";
 import { readImageResponse } from "@/lib/image-response";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, trialFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { imageTransformBody, isHeic, readTransformResponse, sourceImageFormat, type TransformOptions } from "@/lib/image-transform";
 
@@ -207,7 +206,7 @@ export function BackgroundRemovalDemo({
   });
 
   async function processImage() {
-    if (!file || busy || request.current || (transform && auth !== "signed-in")) return;
+    if (!file || busy || request.current) return;
 
     if (tool !== "remove" && !transform) return;
 
@@ -220,10 +219,10 @@ export function BackgroundRemovalDemo({
         const operation = tool === "compress" ? "compress-image" : "convert-image";
         const body = await imageTransformBody(file, { operation, format, quality, lossless, compressionLevel });
 
-        const response = await apiFetch(`/api/v1/${operation}`, {
-          method: "POST", headers: { "Content-Type": "application/json", Accept: "image/*" },
-          body, signal: controller.signal,
-        });
+        const init = { method: "POST", headers: { "Content-Type": "application/json", Accept: "image/*" }, body, signal: controller.signal };
+
+        // Signed-in requests use the account's credits; everyone else uses the free demo.
+        const response = auth === "signed-in" ? await apiFetch(`/api/v1/${operation}`, init) : await trialFetch(operation, init);
 
         const { blob, extension, metadata } = await readTransformResponse(response, operation);
 
@@ -251,27 +250,7 @@ export function BackgroundRemovalDemo({
       form.append("format", "png");
       form.append("quality", "auto");
 
-      const response = await fetch("/api/trial/run", {
-        method: "POST",
-        body: form,
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        if (response.status === 413)
-          throw new Error(
-            "This image exceeds the file-size limit. Choose a smaller file.",
-          );
-
-        const failure = await response
-          .json()
-          .then(Schema.decodeUnknownSync(ApiFailure))
-          .catch(() => ({
-            error: "Could not process this image. Please try again.",
-          }));
-
-        throw new Error(failure.error);
-      }
+      const response = await trialFetch("remove-background", { method: "POST", body: form, signal: controller.signal });
 
       if (!response.headers.get("content-type")?.startsWith("image/"))
         throw new Error("The server did not return an image.");
@@ -414,13 +393,12 @@ export function BackgroundRemovalDemo({
                   }}>Reset to recommended</Button>
                 </div>
               </details>
-              <p className="text-xs text-muted-foreground">Static JPEG, PNG, or WebP · Up to 10 MiB and 25 megapixels · 1 credit per successful operation, including an unchanged result.</p>
-              {auth === "loading" && <p role="status" className="text-muted-foreground">Checking sign-in…</p>}
-              {auth === "signed-out" && (
-                <p className="text-muted-foreground">
-                  <a href="/login" target="_blank" rel="noopener" className="font-medium text-primary underline underline-offset-4">Sign in</a> or <a href="/signup" target="_blank" rel="noopener" className="font-medium text-primary underline underline-offset-4">create an account</a> to {tool} images. Opens a new tab so your selected image stays here.
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Static JPEG, PNG, WebP, AVIF, or HEIC · Up to 10 MiB and 25 megapixels ·{" "}
+                {auth === "signed-in"
+                  ? "1 credit per successful operation, including an unchanged result."
+                  : "Free to try without an account."}
+              </p>
             </fieldset>
           )}
           <div className="flex items-center gap-2 border-t border-border p-3">
@@ -446,7 +424,7 @@ export function BackgroundRemovalDemo({
                 <a href={output} download={`${file?.name.replace(/\.[^.]+$/, "") || "image"}-${resultLabel.toLowerCase()}.${state.status === "complete" ? state.extension : "png"}`} aria-label="Download image"><Download className="size-5" /></a>
               </Button>
             ) : (
-              <Button size="icon" onClick={() => file ? void processImage() : open()} disabled={busy || !operation.available || (Boolean(file) && transform && auth !== "signed-in")} aria-label={busy ? "Processing image" : operation.available ? operation.name : `${operation.name} coming soon`} className="size-11 rounded-xl sm:w-15">
+              <Button size="icon" onClick={() => file ? void processImage() : open()} disabled={busy || !operation.available || (Boolean(file) && transform && auth === "loading")} aria-label={busy ? "Processing image" : operation.available ? operation.name : `${operation.name} coming soon`} className="size-11 rounded-xl sm:w-15">
                 {busy ? <Loader2 className="size-5 animate-spin motion-reduce:animate-none" /> : <ArrowRight className="size-5" />}
               </Button>
             )}

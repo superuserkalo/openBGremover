@@ -34,6 +34,7 @@ export default function PricingPage() {
             <ul className="flex flex-col gap-4 text-sm">
               {[
                 "Background removal",
+                "Image compression and conversion",
                 "Transparent PNG download",
                 "Full-resolution uploads",
                 "Rate-limited public demo",

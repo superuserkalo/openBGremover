@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { ApiFailure, RemoveBackgroundRequest } from "@openbg/contracts";
+import { ApiFailure, CompressImageRequest, ConvertImageRequest, MediaOperation, RemoveBackgroundRequest } from "@openbg/contracts";
 
 export const runtime = "nodejs";
 
@@ -50,7 +50,18 @@ async function readBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
 
 interface ForwardedRequest { body: Uint8Array<ArrayBuffer> | string; contentType: string }
 
-async function decodeRequest(request: Request): Promise<ForwardedRequest> {
+/** Compression and conversion take the same JSON body as the public API. */
+async function decodeTransformRequest(request: Request, operation: "compress-image" | "convert-image"): Promise<ForwardedRequest> {
+  if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) throw new TrialError("Send a JSON image request", 415);
+
+  const value: unknown = JSON.parse(new TextDecoder().decode(await readBody(request)));
+  const schema = operation === "compress-image" ? CompressImageRequest : ConvertImageRequest;
+  const input = Schema.decodeUnknownSync(schema)(value, { onExcessProperty: "error" });
+
+  return { body: JSON.stringify(input), contentType: "application/json" };
+}
+
+async function decodeBackgroundRequest(request: Request): Promise<ForwardedRequest> {
   const bytes = await readBody(request);
   const contentType = request.headers.get("content-type") ?? "";
 
@@ -84,7 +95,13 @@ async function decodeRequest(request: Request): Promise<ForwardedRequest> {
   return { body: JSON.stringify(input), contentType: "application/json" };
 }
 
-export async function POST(request: Request): Promise<Response> {
+/** One public demo route per API operation. The trial key never leaves the server. */
+export async function POST(request: Request, { params }: { params: Promise<{ operation: string }> }): Promise<Response> {
+  const requested = (await params).operation;
+
+  if (!Schema.is(MediaOperation)(requested)) return Response.json({ error: "Route not found" }, { status: 404 });
+
+  const operation = requested;
   const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
   const key = process.env.TRIAL_INTERNAL_API_KEY;
 
@@ -93,13 +110,13 @@ export async function POST(request: Request): Promise<Response> {
   let input: ForwardedRequest;
 
   try {
-    input = await decodeRequest(request);
+    input = operation === "remove-background" ? await decodeBackgroundRequest(request) : await decodeTransformRequest(request, operation);
   } catch (cause) {
     return Response.json({ error: cause instanceof TrialError ? cause.message : "Invalid image request" }, { status: cause instanceof TrialError ? cause.status : 400 });
   }
 
   try {
-    const response = await fetch(`${base.replace(/\/$/, "")}/api/v1/remove-background`, {
+    const response = await fetch(`${base.replace(/\/$/, "")}/api/v1/${operation}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": input.contentType, "X-Usage-Context": "trial", Accept: "image/*" },
       body: input.body, signal: AbortSignal.timeout(190_000), cache: "no-store",
@@ -109,9 +126,12 @@ export async function POST(request: Request): Promise<Response> {
 
     if (response.ok && contentType.startsWith("image/")) {
       const headers = new Headers({ "Content-Type": contentType, "Cache-Control": "no-store" });
-      const timing = response.headers.get("server-timing");
 
-      if (timing) headers.set("Server-Timing", timing);
+      for (const name of ["server-timing", "x-image-metadata"]) {
+        const value = response.headers.get(name);
+
+        if (value) headers.set(name, value);
+      }
 
       return new Response(response.body, { headers });
     }
