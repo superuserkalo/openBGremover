@@ -63,7 +63,26 @@ shows up in costs.
 
 ## Verification
 
-See the commit and rollout notes for the deployed versions. Local checks:
+Deployed on 21 October 2026: Cloudflare API version
+`a4d4d104-b0af-4141-83a8-4c5b65f36e70` (previous, for rollback:
+`e7085675-6e8e-4c2b-985d-992cfb605971`), then the website through Vercel from
+`d39d973`.
+
+Live, signed out, against `https://openbgremover.dev/api/trial/…` with
+synthetic images:
+
+| Request | Result |
+| --- | --- |
+| Compress a 37 KB 320×200 JPEG | 200, 10 KB progressive JPEG, `mozjpeg` |
+| Convert the same JPEG to AVIF | 200, 8.6 KB AVIF, `libavif` |
+| Remove background from a 256×256 PNG | 200, PNG |
+| Unknown operation (`upscale`), old `/api/trial/run` | 404 |
+| Extra JSON field, conversion without `format` | 400 |
+
+The rate limits themselves were not exercised live. No browser click-through
+of the playground was done.
+
+Local checks:
 strict TypeScript, Oxlint, the API test suite (including trial compression and
 conversion: allowed, rate-limited per operation, invalid input rejected before
 the limiter, no credit charged, account routes refused), and the website
