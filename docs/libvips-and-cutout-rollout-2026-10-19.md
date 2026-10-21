@@ -72,11 +72,13 @@ Not done:
 - **Image processing:** v1 (`b3f345e8-bb93-4ace-a383-aef84948a2e5`) is stopped
   and its deployment record is kept. To roll back, restart it and redeploy the
   API with its endpoint.
-- **Background removal:** v18 (`e0a2747a-637d-41f9-865e-d86e25474016`) stays
-  active, because the legacy Cloud Run service still calls it.
+- **Background removal:** v18 (`e0a2747a-637d-41f9-865e-d86e25474016`) was
+  stopped on 21 October 2026 and its deployment record is kept. Only v20 and
+  image processing v3 remain active. The legacy Cloud Run service, which still
+  pointed at v18, is no longer served by Beam.
 - **Whole API:** the previous version is `7f511425-9aad-4d83-844a-68d78cadd343`.
-- **Cloud Run:** left on v18. It should be shut down, not switched to v20; see
-  below.
+- **Cloud Run:** left pointing at the now-stopped v18. It should be shut down,
+  not switched to v20; see below.
 
 ## Mistake: trying to update the legacy Cloud Run service
 
@@ -103,15 +105,14 @@ Why it matters:
 What should happen instead:
 
 1. Check the service's recent request logs (read-only) for real traffic.
-2. If there is none, delete the service, stop Beam v18
-   (`e0a2747a-637d-41f9-865e-d86e25474016`).
-   The owner will handle the service itself.
+2. If there is none, delete the service. The owner will handle this; Beam v18
+   (`e0a2747a-637d-41f9-865e-d86e25474016`) is already stopped.
 3. If a client still calls it, move that client to the Cloudflare API first.
 
 On 21 October 2026 the Cloud Run steps were removed from `AGENTS.md` and
 [the checkpoint rollout procedure](checkpoint-production-rollout.md), so
-future rollouts touch only the Cloudflare API. The service and Beam v18 were
-still running at that point.
+future rollouts touch only the Cloudflare API. Beam v18 was stopped the same
+day; the Cloud Run service itself is left to the owner.
 
 Private deployment logs are under ignored
 `artifacts/deployments/libvips-2026-10-19/`.
