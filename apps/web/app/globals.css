@@ -52,3 +52,98 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 }
+
+/* Composer operation icons replay a short gesture when their tab is selected. */
+@media (prefers-reduced-motion: no-preference) {
+  [role="tab"][data-state="active"] .operation-icon[data-op="remove"] path:nth-child(5) {
+    stroke-dasharray: 10;
+    animation: operation-draw-10 420ms cubic-bezier(0.22, 0.68, 0, 1) backwards;
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="compress"] path:nth-child(-n + 2) {
+    animation: operation-in-top-right 380ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="compress"] path:nth-child(n + 3) {
+    animation: operation-in-bottom-left 380ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(1), :nth-child(3)) {
+    animation: operation-out-bottom-right 420ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(2), :nth-child(4)) {
+    animation: operation-out-top-right 420ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(5), :nth-child(6)) {
+    animation: operation-out-bottom-left 420ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="upscale"] path:is(:nth-child(7), :nth-child(8)) {
+    animation: operation-out-top-left 420ms cubic-bezier(0.22, 0.68, 0, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="convert"] {
+    animation: operation-spin 600ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(5) {
+    stroke-dasharray: 8;
+    animation: operation-draw-8 240ms ease-out backwards;
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(6) {
+    stroke-dasharray: 10;
+    animation: operation-draw-10 260ms ease-out 140ms backwards;
+  }
+
+  [role="tab"][data-state="active"] .operation-icon[data-op="ocr"] path:nth-child(7) {
+    stroke-dasharray: 6;
+    animation: operation-draw-6 220ms ease-out 280ms backwards;
+  }
+}
+
+@keyframes operation-draw-6 {
+  from { stroke-dashoffset: 6; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes operation-draw-8 {
+  from { stroke-dashoffset: 8; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes operation-draw-10 {
+  from { stroke-dashoffset: 10; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes operation-in-top-right {
+  45% { transform: translate(-2.5px, 2.5px); }
+}
+
+@keyframes operation-in-bottom-left {
+  45% { transform: translate(2.5px, -2.5px); }
+}
+
+@keyframes operation-out-top-right {
+  45% { transform: translate(2px, -2px); }
+}
+
+@keyframes operation-out-bottom-right {
+  45% { transform: translate(2px, 2px); }
+}
+
+@keyframes operation-out-bottom-left {
+  45% { transform: translate(-2px, 2px); }
+}
+
+@keyframes operation-out-top-left {
+  45% { transform: translate(-2px, -2px); }
+}
+
+@keyframes operation-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

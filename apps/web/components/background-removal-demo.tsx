@@ -438,7 +438,7 @@ export function BackgroundRemovalDemo({
                   <Tooltip key={item.id}>
                     <TooltipTrigger asChild>
                       <TabsTrigger value={item.id} data-state={tool === item.id ? "active" : "inactive"} disabled={busy} className="h-8 min-w-16 shrink-0 flex-none gap-1.5 rounded-md px-2 text-xs sm:flex-1 text-muted-foreground sm:text-sm data-[state=active]:text-foreground border-0 data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none transition-colors focus-visible:border-0 focus-visible:ring-0 focus-visible:outline-none [&[data-state=active]>svg]:text-primary">
-                        <item.icon className="hidden size-4 sm:block" />
+                        <item.icon data-op={item.id} className="operation-icon hidden size-4 sm:block" />
                         {item.short}
                       </TabsTrigger>
                     </TooltipTrigger>
