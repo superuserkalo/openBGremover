@@ -23,7 +23,7 @@ import { mediaOperations } from "@/lib/media-operations";
 import { readImageResponse } from "@/lib/image-response";
 import { apiFetch, trialFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import { imageTransformBody, isHeic, readTransformResponse, sourceImageFormat, type TransformOptions } from "@/lib/image-transform";
+import { imageTransformBody, isHeic, readTransformResponse } from "@/lib/image-transform";
 
 const BACKGROUND_INPUTS = { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"], "image/webp": [".webp"] };
 
@@ -141,17 +141,11 @@ export function BackgroundRemovalDemo({
   const [original, setOriginal] = useState<string | null>(null);
   const [state, setState] = useState<ProcessingState>({ status: "idle" });
   const [auth, setAuth] = useState<"loading" | "signed-in" | "signed-out">("loading");
-  const [format, setFormat] = useState<TransformOptions["format"]>("webp");
-  const [quality, setQuality] = useState<number | undefined>(undefined);
-  const [lossless, setLossless] = useState<boolean | undefined>(undefined);
-  const [compressionLevel, setCompressionLevel] = useState<number | undefined>(undefined);
-  const optionsId = useId();
   const request = useRef<AbortController | null>(null);
   const tabList = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const busy = state.status === "processing";
   const transform = tool === "compress" || tool === "convert";
-  const outputFormat = tool === "compress" && file ? sourceImageFormat(file) : format;
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -238,7 +232,8 @@ export function BackgroundRemovalDemo({
     try {
       if (transform) {
         const operation = tool === "compress" ? "compress-image" : "convert-image";
-        const body = await imageTransformBody(file, { operation, format, quality, lossless, compressionLevel });
+        // Settings are hidden until they get a better home (#17): recommended defaults, Convert targets WebP.
+        const body = await imageTransformBody(file, { operation, format: "webp", quality: undefined, lossless: undefined, compressionLevel: undefined });
 
         const init = { method: "POST", headers: { "Content-Type": "application/json", Accept: "image/*" }, body, signal: controller.signal };
 
@@ -351,78 +346,6 @@ export function BackgroundRemovalDemo({
                 </span>
               </button>
             )}
-          </div>
-          <div inert={!transform} className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,0.68,0,1)] motion-reduce:transition-none ${transform ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-            <div className="min-h-0 overflow-hidden">
-              <fieldset disabled={busy} className="space-y-4 border-t border-border px-5 py-4 text-sm sm:px-6">
-                <legend className="sr-only">{operation.name} settings</legend>
-                {tool === "convert" ? (
-                  <div className="flex items-center justify-between gap-4">
-                    <label htmlFor={`${optionsId}-format`}>Output format</label>
-                    <select id={`${optionsId}-format`} value={format} onChange={(event) => {
-                      const value = event.target.value;
-
-                      if (value === "jpeg" || value === "png" || value === "webp" || value === "avif") setFormat(value);
-                      setState({ status: "idle" });
-                    }} className="rounded-lg border border-input bg-background px-3 py-2">
-                      <option value="jpeg">JPEG</option>
-                      <option value="png">PNG</option>
-                      <option value="webp">WebP</option>
-                      <option value="avif">AVIF</option>
-                    </select>
-                  </div>
-                ) : <p className="text-muted-foreground">Keep the original format. Return the original if it is already smaller.</p>}
-                {tool === "convert" && outputFormat === "jpeg" && <p className="text-xs text-muted-foreground">Transparent areas become white in JPEG.</p>}
-                <details className="group">
-                  <summary className="cursor-pointer font-medium">Advanced settings</summary>
-                  <div className="mt-4 space-y-4">
-                    <p className="text-xs text-muted-foreground">Leave settings blank to use recommended defaults. Overrides stay active when this section is closed.</p>
-                    {(file || tool === "convert") ? (
-                      <>
-                        {outputFormat === "webp" && (
-                          <div className="flex items-center justify-between gap-4">
-                            <label htmlFor={`${optionsId}-lossless`}>WebP encoding</label>
-                            <select id={`${optionsId}-lossless`} value={lossless === undefined ? "" : String(lossless)} onChange={(event) => {
-                              setLossless(event.target.value === "" ? undefined : event.target.value === "true");
-                              setState({ status: "idle" });
-                            }} className="rounded-lg border border-input bg-background px-3 py-2">
-                              <option value="">Recommended</option>
-                              <option value="false">Lossy</option>
-                              <option value="true">Lossless</option>
-                            </select>
-                          </div>
-                        )}
-                        {outputFormat === "png" ? (
-                          <div className="space-y-2">
-                            <label htmlFor={`${optionsId}-compression`} className="block">PNG compression level (0–9)</label>
-                            <input id={`${optionsId}-compression`} type="number" min="0" max="9" step="1" value={compressionLevel ?? ""} placeholder="Recommended" onChange={(event) => { setCompressionLevel(event.target.value === "" ? undefined : Number(event.target.value)); setState({ status: "idle" }); }} className="w-full rounded-lg border border-input bg-background px-3 py-2" />
-                            <p className="text-xs text-muted-foreground">Lossless. Higher levels take longer and may produce smaller files.</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <label htmlFor={`${optionsId}-quality`} className="block">{outputFormat === "webp" && lossless ? "Compression effort" : "Quality"} (1–100)</label>
-                            <input id={`${optionsId}-quality`} type="number" min="1" max="100" step="1" value={quality ?? ""} placeholder="Recommended" onChange={(event) => { setQuality(event.target.value === "" ? undefined : Number(event.target.value)); setState({ status: "idle" }); }} className="w-full rounded-lg border border-input bg-background px-3 py-2" />
-                            <p className="text-xs text-muted-foreground">{outputFormat === "webp" && lossless ? "Higher effort takes longer and may produce smaller files without changing pixel quality." : "Lower quality usually means a smaller file."}</p>
-                          </div>
-                        )}
-                      </>
-                    ) : <p className="text-xs text-muted-foreground">Choose an image to see settings for its format.</p>}
-                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                      setQuality(undefined);
-                      setLossless(undefined);
-                      setCompressionLevel(undefined);
-                      setState({ status: "idle" });
-                    }}>Reset to recommended</Button>
-                  </div>
-                </details>
-                <p className="text-xs text-muted-foreground">
-                  Static JPEG, PNG, WebP, AVIF, or HEIC · Up to 10 MiB and 25 megapixels ·{" "}
-                  {auth === "signed-in"
-                    ? "1 credit per successful operation, including an unchanged result."
-                    : "Free to try without an account."}
-                </p>
-              </fieldset>
-            </div>
           </div>
           <div className="flex items-center gap-2 border-t border-border p-3">
             <TooltipProvider delayDuration={180}>
