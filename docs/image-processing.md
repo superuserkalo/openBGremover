@@ -45,7 +45,7 @@ local build and live API evidence; this does not establish website deployment.
 ### HTTP
 
 Use an owner API key or Supabase session in `Authorization: Bearer ...`.
-The internal trial key remains restricted to background removal.
+The internal trial key can also call compression and conversion, for the signed-out playground. See [the public demo trial route](public-demo-trial-route.md).
 
 Compression accepts JSON:
 

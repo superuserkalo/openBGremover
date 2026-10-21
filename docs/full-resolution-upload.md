@@ -27,7 +27,7 @@ This permits some larger results; it does not make output size unlimited.
 Changed code:
 
 - [Homepage upload](../apps/web/components/background-removal-demo.tsx)
-- [Trial proxy](../apps/web/app/api/trial/run/route.ts)
+- Trial proxy: `apps/web/app/api/trial/run/route.ts` at the time; now [`/api/trial/[operation]`](../apps/web/app/api/trial/%5Boperation%5D/route.ts)
 - [Output validation](../apps/api/src/media.ts)
 - [Output-size and accounting regression tests](../apps/api/test/api.test.ts)
 

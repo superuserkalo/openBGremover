@@ -44,8 +44,10 @@ This does not change `BEAM_ENDPOINT_URL` or the background-removal checkpoint.
    `hashed_key`, `is_service=true`, `is_active=true`, and `scopes=ARRAY['trial']`.
    Put the raw key only in the web server's `TRIAL_INTERNAL_API_KEY`. Ordinary
    dashboard keys cannot impersonate trial requests. The public demo is limited
-   to 5 requests/minute per Cloudflare location across the demo service key;
-   Cloudflare's rate limiter is approximate, not a global spend cap.
+   per Cloudflare location across the demo service key: 5 requests/minute for
+   background removal and 30 for compression and conversion. Cloudflare's rate
+   limiter is approximate, not a global spend cap. See
+   [the public demo trial route](public-demo-trial-route.md).
 7. Run `npm run types -w @openbg/api`, `npm run check`, and both build commands.
    Deploy the API with `npm run deploy -w @openbg/api`, then point the web app at
    it. Verify a real login, key creation, processing request, usage record, and
