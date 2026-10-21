@@ -26,3 +26,11 @@ passed on `e936e03`. A headless Chromium check on https://openbgremover.dev
 showed the homepage comparison at 558 × 558 for the square astronaut image
 with no letterboxing. Dragging moved the divider, and the Connect agent button
 reported `cursor: pointer`.
+
+## Follow-up: Remove outline trace speed
+
+`86bd06d` shortens the Remove tab's outline trace from 1.8s to 0.8s with the
+same ease-out curve, in line with the other operation icons (0.9–1s). Vercel
+and CI passed. The live stylesheet serves
+`animation: .8s cubic-bezier(.3,.35,.45,1) both operation-trace`. Roll back to
+the slider-fix deployment above if needed.
