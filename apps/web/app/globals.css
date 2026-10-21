@@ -65,7 +65,7 @@
 
   [role="tab"][data-state="active"] .operation-icon[data-op="remove"] path:nth-child(5) {
     stroke-dasharray: 1 2;
-    animation: operation-trace 1800ms cubic-bezier(0.3, 0.35, 0.45, 1) both;
+    animation: operation-trace 800ms cubic-bezier(0.3, 0.35, 0.45, 1) both;
   }
 
   [role="tab"][data-state="active"] .operation-icon[data-op="compress"] path:nth-child(-n + 2) {
