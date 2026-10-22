@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { startPixelField } from "./start-pixel-field";
+import { useEffect, useRef, useState } from "react";
+import { startSignalGpu } from "@/components/shaders/start-signal-gpu";
+import { startSignalCanvas } from "./start-signal-canvas";
+
+type Renderer = "webgpu" | "canvas";
 
 export function PixelField() {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const [renderer, setRenderer] = useState<Renderer>("webgpu");
 
   useEffect(() => {
     const element = canvas.current;
 
     if (!element) return;
 
-    return startPixelField(element);
-  }, []);
+    if (renderer === "canvas") return startSignalCanvas(element);
+
+    return startSignalGpu(element, () => setRenderer("canvas"));
+  }, [renderer]);
 
   return (
     <div
@@ -29,10 +35,13 @@ export function PixelField() {
           </div>
         ))}
       </div>
+      {/* A WebGPU canvas cannot later return a 2D context, so the fallback remounts it. */}
       <canvas
+        key={renderer}
         ref={canvas}
+        data-renderer={renderer}
         data-rendered="false"
-        className="absolute inset-x-0 bottom-0 h-72 w-full opacity-0 transition-opacity duration-700 data-[rendered=true]:opacity-100 motion-reduce:transition-none"
+        className="absolute inset-0 size-full opacity-0 mask-[linear-gradient(to_top,black_45%,transparent_95%)] transition-opacity duration-700 data-[rendered=true]:opacity-100 motion-reduce:transition-none"
       />
     </div>
   );

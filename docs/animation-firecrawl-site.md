@@ -318,3 +318,30 @@ Ignored evidence, screenshots, source manifests, and JSON results are under
 `/tmp/openbg-animation-production-check/verify.mjs` and `code-motion.mjs`.
 The prior deployment `dpl_71GXCajJa1SVuSyeKgwMSxhDUfYX` remains the rollback
 reference. No Git commit or push was needed for this release.
+
+## Hero signal field (22 October 2026)
+
+The "+/−" Canvas 2D field was replaced by a signal field: a dithered ASCII
+ribbon (5×5 bitmap glyphs, 4×4 Bayer ordered dither over domain-warped noise)
+that a scan line repeatedly cuts out to a transparency checkerboard. Hovering
+with a mouse shows a rotating reticle that cuts out the cells under it. The
+motion is about removing a background, which is the product.
+
+- **Renderers.** WebGPU through vgpu (`components/shaders/signal-field.wgsl`)
+  is tried first. If `navigator.gpu` is missing, startup fails, or the device
+  is lost, the component remounts a fresh canvas and runs the Canvas 2D
+  renderer (`components/marketing/start-signal-canvas.ts`). The TypeScript
+  `sampleCell` is the reference both renderers follow.
+- **Libraries considered.** Paper Shaders (`@paper-design/shaders-react`,
+  Apache-2.0, zero dependencies, no install scripts, ~750k weekly downloads)
+  was audited at 0.0.81: its only `fetch` calls read the content type of a
+  caller-supplied blob image. It was not added because vgpu already ships, and
+  a bespoke shader keeps the reticle and scan cut-out in one pass.
+- **Budgets.** WebGPU runs at up to 60 fps with DPR clamped to 1.5. Canvas 2D
+  runs at 30 fps and skips cells outside the ribbon. Both pause offscreen and
+  in hidden tabs. Reduced motion renders one fixed frame (time 4.5 s, scan
+  mid-hero) and ignores the pointer.
+- **Verification.** Chrome at 1440 px with WebGPU, Chrome with `navigator.gpu`
+  removed (Canvas 2D path, 60 fps page rAF), and 390 px with reduced motion
+  (no horizontal overflow). Safari and Firefox were not tested directly; they
+  exercise the same fallback path.
