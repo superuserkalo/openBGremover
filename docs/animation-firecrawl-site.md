@@ -345,3 +345,42 @@ motion is about removing a background, which is the product.
   removed (Canvas 2D path, 60 fps page rAF), and 390 px with reduced motion
   (no horizontal overflow). Safari and Firefox were not tested directly; they
   exercise the same fallback path.
+
+## Hero media stage (24 October 2026)
+
+The signal field above was rejected: it covered only a thin band at the bottom
+of the hero. Several follow-ups were also rejected in previews: a sigil globe,
+an ASCII flow field, halftone terrain, and a grid of small cells running
+separate jobs, where pictures were too coarse to read at about 22×14
+characters per cell. The shipped design makes the whole hero one ASCII canvas
+(`components/marketing/media-stage.ts`).
+
+- **Concept.** An orange scan crosses the hero every 5.4 s, and each pass runs
+  a different operation from the platform catalog: remove background,
+  transcribe, merge PDFs, compress, parse a document, convert video, upscale,
+  and clean up audio. Neighbouring passes always show different media.
+  The label names the pass, for example `[ 01 / 08 ] REMOVE BG · IMAGE`, then
+  shows its result.
+- **Picture source.** The image and video passes render
+  `public/examples/astronaut.png` (NASA portrait, public domain) and our own
+  background-removal result for it. Both are downsampled to 64×64 brightness
+  and transparency grids in `media-stage-portrait.ts` (16 KB), so the page
+  does not load the 5 MB source images. Remove background follows the real
+  cutout outline.
+- **Rendering.** Canvas 2D draws 6×9 px characters from a glyph atlas,
+  printable ASCII in three inks. A 1280×640 hero holds about 15k cells. It
+  draws at 30 fps; Chrome showed 60 fps page frames and no long tasks over
+  6 s. WebGPU was dropped because Canvas 2D meets the budget in every
+  browser, so the `vgpu` and `@vgpu/wgsl` dependencies and the WGSL loader
+  were removed.
+- **Layout.** Elements marked `data-stage-calm` (the headline block) fade the
+  effect to 12%, feathered over 40 px. Elements marked `data-stage-hide` (the
+  upload card) are not drawn under. Both are measured per section and
+  re-measured when they resize. The stage also runs behind the closing
+  "Try your first image" section and the playground header.
+- **Motion and visibility.** Animation pauses offscreen and in hidden tabs.
+  Reduced motion draws one still frame: the finished background removal.
+- **Verification.** `media-stage.test.ts` covers scene order, media coverage,
+  scan timing and the reduced-motion frame. Checked in Chrome at 1440 px with
+  every pass, and at 390 px with reduced motion: no horizontal overflow, and
+  the headline stays readable.

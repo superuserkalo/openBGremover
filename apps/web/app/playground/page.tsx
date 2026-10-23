@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { PixelField } from "@/components/marketing/pixel-field";
+import { MediaStage } from "@/components/marketing/media-stage-field";
 import { BackgroundRemovalDemo } from "@/components/background-removal-demo";
 import { CodeExample } from "@/components/marketing/code-example";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,8 +38,8 @@ export default function PlaygroundPage({
       <SiteHeader />
       <main className="mx-auto max-w-7xl border-x border-border">
         <section className="relative isolate overflow-hidden border-b border-border px-6 py-16 text-center">
-          <PixelField />
-          <div className="relative">
+          <MediaStage />
+          <div data-stage-calm className="relative">
             <h1 className="text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
               Playground
             </h1>

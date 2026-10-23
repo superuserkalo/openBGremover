@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { PixelField } from "@/components/marketing/pixel-field";
+import { MediaStage } from "@/components/marketing/media-stage-field";
 import { CodeExample } from "@/components/marketing/code-example";
 import { Faq } from "@/components/marketing/faq";
 import {
@@ -45,9 +45,9 @@ export default function HomePage() {
         className="mx-auto max-w-7xl border-x border-border"
       >
         <section className="relative isolate overflow-hidden border-b border-border">
-          <PixelField />
+          <MediaStage />
           <div className="relative grid min-h-165 items-center gap-10 px-6 py-16 sm:px-10 lg:grid-cols-[1fr_1fr] lg:gap-14 lg:px-12 lg:py-24">
-            <div className="flex flex-col items-start gap-7">
+            <div data-stage-calm className="flex flex-col items-start gap-7">
               <h1 className="text-[43px] leading-[1.07] font-semibold tracking-[-0.055em] sm:text-6xl lg:text-[66px]">
                 Give your agents
                 <br />
@@ -67,7 +67,7 @@ export default function HomePage() {
                 <AgentConnect />
               </div>
             </div>
-            <div className="min-w-0">
+            <div data-stage-hide className="min-w-0">
               <BackgroundRemovalDemo />
             </div>
           </div>
@@ -217,8 +217,8 @@ export default function HomePage() {
         </section>
         <div className="h-20 sm:h-28" />
         <section className="relative isolate overflow-hidden border-y border-border px-6 py-20 text-center sm:py-28">
-          <PixelField />
-          <div className="relative">
+          <MediaStage />
+          <div data-stage-calm className="relative">
             <h2 className="text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
               Try your first image.
             </h2>
