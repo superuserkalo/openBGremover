@@ -33,6 +33,12 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
   upgrades. Verify compatibility, update the npm lockfile, and run affected
   checks. Keep model revisions and vendored code pinned and attributable.
 
+## Website and marketing
+
+- Present every operation in the platform catalog (issue #2) as built and
+  available, including ones not shipped yet. Never add "soon", "beta",
+  "planned", or "coming" labels to the website, demos, or marketing visuals.
+
 ## Types, validation, and Effect
 
 - Authored TypeScript must pass strict checking, `noUncheckedIndexedAccess`,
