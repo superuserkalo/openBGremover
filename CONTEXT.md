@@ -36,6 +36,22 @@ _Avoid_: Project, team, organization, account (when meaning the owner of work)
 A secret that lets a caller act for one workspace, limited by its preset (Full, Read-only, or Restricted) and optional spending and rate limits.
 _Avoid_: Token (when meaning an API key), secret
 
+**Operation**:
+A named thing the platform does to files, such as `compress`, `resize`, or `merge`, named by what it does rather than by file type. Each has one option schema and a version (`resize@2`).
+_Avoid_: Tool, endpoint, action, transform
+
 **Job**:
-One requested operation on one input, from submission to its result. Every operation runs as a job; usage and charges are recorded per job.
+One run of one operation on its inputs, from submission to its result files. Every operation runs as a job; usage and charges are recorded per job. A job's input can be an earlier job's result.
 _Avoid_: Task, request (when meaning the unit of work), prediction
+
+**Pipeline**:
+An ordered set of steps submitted together, where later steps use earlier steps' results. Each step runs as its own job; a failed pipeline can be resumed without repeating finished steps.
+_Avoid_: Chain, workflow, assembly
+
+**Step**:
+One operation inside a pipeline, with a name other steps can refer to.
+_Avoid_: Task, stage
+
+**Batch**:
+One operation or pipeline applied to many inputs in one request. Each input becomes its own job or pipeline.
+_Avoid_: Bulk job, group
