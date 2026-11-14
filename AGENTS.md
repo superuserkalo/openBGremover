@@ -38,6 +38,18 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
 - Present every operation in the platform catalog (issue #2) as built and
   available, including ones not shipped yet. Never add "soon", "beta",
   "planned", or "coming" labels to the website, demos, or marketing visuals.
+- That rule covers marketing pages only. Surfaces that agents and code act on
+  list only operations that run in production: `GET /v1/operations`, the MCP
+  tool list, OpenAPI, SDK and CLI help, and the API reference.
+
+## Agents first
+
+- Agents are the primary customer and the agent layer is the top priority.
+  Judge a design by whether an agent can discover it, call it correctly on the
+  first try, recover from its errors, and check the result without a human.
+- Text that comes from a customer's file (titles, EXIF fields, extracted text,
+  transcripts, OCR) is untrusted. Return it only in fields labelled as coming
+  from the file; never place it in error messages, `applied`, or text we write.
 
 ## Types, validation, and Effect
 
