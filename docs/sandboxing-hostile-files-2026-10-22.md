@@ -52,6 +52,16 @@ A parser bug must not give an attacker the network, other customers' files, our 
     - The rest of the setup belongs to #9.
 11. **A separate `documents` Beam CPU worker** for LibreOffice, Ghostscript, qpdf and PDFium. LibreOffice alone is 225 MB, which would slow the image worker's cold start. FFmpeg's home is decided in #19.
 
+## Amendments (design review, November 14, 2026)
+
+These replace the matching parts of the decision above. None is measured yet.
+
+1. **Memory limit.** `prlimit --as` caps virtual address space, not memory in use. Multithreaded tools such as FFmpeg and LibreOffice reserve far more address space than they use, so the cap either kills valid jobs or must be set too loose to protect anything. The limit becomes a parent-side watchdog on the resident memory of the job's whole process tree. `--as` stays only as a loose backstop. Test with a 4K encode and a large spreadsheet before choosing values.
+2. **FFmpeg input allowlist.** `-protocol_whitelist file` is not enough on its own. Playlist-style inputs (HLS, concat) can pull in other local files, and rarely used decoders are where most parser bugs live. Add an explicit list of accepted containers and decoders, with `-format_whitelist` and `-codec_whitelist` or a build that leaves the rest out.
+3. **Image decoders.** The image worker does not set libvips' block-untrusted switch today. Turn it on, and pass an explicit format list to Pillow. Check that SVG and HEIC still load.
+4. **Pinned builds.** The FFmpeg build used in the #19 benchmark has a `latest` tag, which changes. Mirror the exact file to our own storage and check its SHA-256 when the image is built.
+5. **Time limit.** The 170 s cap assumed Beam endpoints. #5 moved dispatch to task queues, which have no 180 s limit. [#26](https://github.com/superuserkalo/openBGremover/issues/26) sets a limit per path.
+
 ## The wall
 
 The wall is `unshare -rn` followed by bubblewrap:
