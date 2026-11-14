@@ -62,6 +62,17 @@ These replace the matching parts of the decision above. None is measured yet.
 4. **Pinned builds.** The FFmpeg build used in the #19 benchmark has a `latest` tag, which changes. Mirror the exact file to our own storage and check its SHA-256 when the image is built.
 5. **Time limit.** The 170 s cap assumed Beam endpoints. #5 moved dispatch to task queues, which have no 180 s limit. [#26](https://github.com/superuserkalo/openBGremover/issues/26) sets a limit per path.
 
+## Amendments (November 15, 2026)
+
+The owner dropped self-hosting and asked for the fullest design, with build effort no longer a reason to defer. None of these is measured yet.
+
+1. **Self-hosting is dropped.** Decision 10 no longer applies, and `UNSAFE_NO_SANDBOX` is not built. The worker still checks at start-up that the wall works and refuses untrusted files if it doesn't, with no override.
+2. **Allowed system calls per tool.** Each tool runs with a seccomp list of the system calls it needs. Check that gVisor enforces a filter set from inside the container.
+3. **Standing fuzzing.** A fuzzing job on public CI runs against our pinned decoders in the same configuration the wall uses.
+4. **Exploit files.** A set of known exploit files for our tools runs on every build. Each must fail to reach the network, other files, or the next job.
+5. **Same-day security upgrades.** The check for new security releases runs daily. An agent opens the upgrade pull request and runs the reference files and the agent task suite (#25) on it.
+6. **A second home for CPU workers.** If CPU workers also run on Cloudflare Containers ([#26](https://github.com/superuserkalo/openBGremover/issues/26)), the wall is measured there before any untrusted file runs there.
+
 ## The wall
 
 The wall is `unshare -rn` followed by bubblewrap:
