@@ -1,7 +1,7 @@
 # Working on openBGremover
 
-Build media-processing infrastructure that a one- or two-person team can maintain.
-Background removal is the implemented operation. The website and future CLI,
+Build media-processing infrastructure for agents. Agents build and run it; a
+one- or two-person team directs and reviews. Background removal is the implemented operation. The website and future CLI,
 SDK, skill, and MCP clients should use the same authenticated HTTP API.
 
 ## Architecture and tradeoffs
@@ -51,6 +51,21 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
   transcripts, OCR) is untrusted. Return it only in fields labelled as coming
   from the file; never place it in error messages, `applied`, or text we write.
 
+## Scope and ambition
+
+- Build effort and upkeep are never reasons to defer, cut, or sequence work,
+  because agents do the building. Defer only for cost, legal exposure, abuse
+  risk, or missing proof that something works, and say which one applies.
+- An operation ships when it passes the agent task suite and its reference
+  files (issue #25), not when its code is written.
+- Everything runs on the plans we already pay for: Cloudflare Workers Paid,
+  Supabase free, and Beam Developer. When a plan limit is in the way, engineer
+  around it. A plan upgrade needs the owner's explicit OK.
+- Hosted only. The source stays public under AGPL-3.0, but running without
+  Cloudflare, Supabase, and Beam is not supported. Do not add adapters,
+  settings, or fallbacks for other providers, and do not reject a design
+  because it is specific to one of ours.
+
 ## Types, validation, and Effect
 
 - Authored TypeScript must pass strict checking, `noUncheckedIndexedAccess`,
@@ -85,7 +100,10 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
 - Keep owner checks, API-key scopes, session-only account/key management, and
   the server-only trial key boundary. New login behavior must preserve the
   supported Supabase signing-key transition described in
-  [the migration guide](docs/migration.md).
+  [the migration guide](docs/migration.md). One planned exception to
+  session-only key management (issue #22): a key may mint child keys that are
+  narrower and shorter-lived than itself. A key can never widen its own or
+  another key's access.
 - Validate inputs before reserving credits. Keep row-locked reservation,
   successful usage recording, and failed-processing refunds together. Keep
   Hyperdrive query caching disabled for balances, revocation, and usage.
