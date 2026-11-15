@@ -65,6 +65,12 @@ SDK, skill, and MCP clients should use the same authenticated HTTP API.
   Cloudflare, Supabase, and Beam is not supported. Do not add adapters,
   settings, or fallbacks for other providers, and do not reject a design
   because it is specific to one of ours.
+- Use a model or tool when its licence allows commercial hosted use today,
+  including a custom licence, and name a backup for it. Use the backup when
+  it is as good or better. Never use noncommercial or revenue-capped weights.
+  Put the credits a licence requires in a notices file in the repository and
+  on one credits page in the docs. Engines, backups, and exclusions are in
+  [the catalog research](docs/agent-catalog-research-2026-11-15.md).
 
 ## Types, validation, and Effect
 
