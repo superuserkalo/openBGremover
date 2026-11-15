@@ -67,11 +67,11 @@ These replace the matching parts of the decision above. None is measured yet.
 The owner dropped self-hosting and asked for the fullest design, with build effort no longer a reason to defer. None of these is measured yet.
 
 1. **Self-hosting is dropped.** Decision 10 no longer applies, and `UNSAFE_NO_SANDBOX` is not built. The worker still checks at start-up that the wall works and refuses untrusted files if it doesn't, with no override.
-2. **Allowed system calls per tool.** Each tool runs with a seccomp list of the system calls it needs. Check that gVisor enforces a filter set from inside the container.
+2. **Allowed system calls per tool.** Each tool runs with a seccomp list of the system calls it needs. Measured on November 15, 2026: a filter set from inside the container is enforced on Beam's gVisor and on Cloudflare Containers ([results](compute-placement-measurements-2026-11-15.md)).
 3. **Standing fuzzing.** A fuzzing job on public CI runs against our pinned decoders in the same configuration the wall uses.
 4. **Exploit files.** A set of known exploit files for our tools runs on every build. Each must fail to reach the network, other files, or the next job.
 5. **Same-day security upgrades.** The check for new security releases runs daily. An agent opens the upgrade pull request and runs the reference files and the agent task suite (#25) on it.
-6. **A second home for CPU workers.** If CPU workers also run on Cloudflare Containers ([#26](https://github.com/superuserkalo/openBGremover/issues/26)), the wall is measured there before any untrusted file runs there.
+6. **Cloudflare Containers.** Small jobs run there, one fresh container per job ([#26](https://github.com/superuserkalo/openBGremover/issues/26)). Measured on November 15, 2026: the wall works there and starts in 7 ms, against 24 ms on Beam. Every process in a Cloudflare container has root's capabilities whatever user it runs as, so the wall and the fresh container are what separate jobs. Still to check: a container with internet access switched off.
 
 ## The wall
 
