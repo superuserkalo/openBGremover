@@ -55,3 +55,17 @@ _Avoid_: Task, stage
 **Batch**:
 One operation or pipeline applied to many inputs in one request. Each input becomes its own job or pipeline.
 _Avoid_: Bulk job, group
+
+**Route**:
+One of several ways an operation can do the same job, such as reading a document's text layer or running a model on its pages. The platform picks a route from the file, callers can force one, and results report which ran.
+_Avoid_: Mode (when meaning the engine path), backend, pipeline
+
+### Proving it works
+
+**Reference file**:
+A fixed input with the output facts it must produce, used to prove an operation works. Reference files run with no model involved.
+_Avoid_: Fixture, golden file, test asset
+
+**Agent task**:
+A request written in plain words, with a checker, used to prove an agent can use an operation. Each task is run several times per model; one run is a trial.
+_Avoid_: Eval, prompt, test case
