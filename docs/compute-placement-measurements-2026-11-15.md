@@ -15,12 +15,13 @@ Three questions were open:
 1. **Heavy CPU work stays on Beam,** with the CPU tier set explicitly on every worker.
    - **Shared** is the default tier.
    - **Spot** is for work that is safe to retry: pieces of a split video and batch items.
-   - **Performance** is never chosen. It was slower than Shared in every test and costs 4.5 times as much per vCPU.
-2. **Small and interactive jobs run on Cloudflare Containers:** small images, `inspect`, dry runs and previews. Each job gets a fresh container that is destroyed afterwards.
-3. **Cloudflare Containers is also the overflow** when Beam's 30 concurrent vCPUs are in use, and the fallback when Beam is down. It costs more per minute of work, so it is not the first choice for long jobs.
-4. **No image work inside the API Worker.** WebAssembly codecs fail above about 4 megapixels.
-5. **GPU work stays on Beam.** Cloudflare Containers has no GPU.
-6. **Video defaults:** x264 `medium` for H.264 and SVT-AV1 preset 8 for AV1.
+   - **Performance** is for jobs where moving the file takes longer than the work, such as today's image endpoint. Its processors are slower and it costs 4.5 times as much per vCPU, but its network was about five times faster.
+2. **Today's image worker stays on its current tier.** A Shared-tier copy was slower end to end, cold and warm.
+3. **Small and interactive jobs run on Cloudflare Containers:** small images, `inspect`, dry runs and previews. Each job gets a fresh container that is destroyed afterwards.
+4. **Cloudflare Containers is also the overflow** when Beam's 30 concurrent vCPUs are in use, and the fallback when Beam is down. It costs more per minute of work, so it is not the first choice for long jobs.
+5. **No image work inside the API Worker.** WebAssembly codecs fail above about 4 megapixels.
+6. **GPU work stays on Beam.** Cloudflare Containers has no GPU.
+7. **Video defaults:** x264 `medium` for H.264 and SVT-AV1 preset 8 for AV1.
 
 Moving off Beam would not save money. For the same encode, Cloudflare Containers cost 8 times as much as Beam Shared and 22 times as much as Beam Spot.
 
@@ -81,9 +82,63 @@ Setup: the Ubuntu package of FFmpeg (4.4), x264 medium, the same clip, threads e
 | 8 vCPU Shared | 3 | 77.9 | 81.8 | 81.9 |
 | 8 vCPU Spot | 1 | 82.0 | | |
 
-- Shared and Spot ran on different machines from Performance. Their containers reported 32 CPUs and hashed 2.6 GB/s on one process. Performance and the account default reported 64 CPUs and hashed 1.6 to 1.7 GB/s.
 - x264 scaled in step with vCPUs from 4 to 8 on Shared.
 - No Spot run was interrupted. There were 7 runs, each under two minutes, so this says nothing about how often interruptions happen.
+
+### Why the dearer tier is slower
+
+The tiers run on different processors. A second round on the same day read each container's processor details and timed it alone and with five others. Setup: 4 vCPU, 8 GiB, the static FFmpeg build, the same clip, 3 containers per tier alone and 6 at once, 3 passes in each container.
+
+| | Performance | Shared | Spot |
+| --- | --- | --- | --- |
+| Processor | Intel Xeon, family 6 model 207 (a 2023 server chip) | AMD, model 68, reported at 5.4 to 5.8 GHz | Same as Shared |
+| Logical CPUs on the host | 64 | 32 | 32 |
+| Reported clock speed | 3.0 to 3.6 GHz | 5.4 to 5.8 GHz | 4.9 to 5.8 GHz |
+| x264 on one thread, alone | 12.5 fps | 21.5 fps | 21.5 fps |
+| x264 on four threads, alone | 24.6 fps (21.6 to 26.1) | 45.1 fps (43.4 to 45.3) | 45.2 fps (44.9 to 45.7) |
+| x264 on four threads, six containers at once | 22.2 fps (17.1 to 24.1) | 31.9 fps (27.4 to 41.2) | 32.2 fps (26.9 to 39.5) |
+| SVT-AV1 preset 8, alone | 44.3 fps | 71.7 fps | 71.3 fps |
+| SVT-AV1 preset 8, six at once | 39.6 fps | 46.9 fps | 50.4 fps |
+| Memory copy, alone | 1.6 GB/s | 3.4 GB/s | 3.4 GB/s |
+
+Figures are medians, with the range in brackets.
+
+- **Shared and Spot sit on much faster cores.** Each thread did 1.7 times the work of a Performance thread. gVisor hides the processor's name. The model number, the 32 logical CPUs and the clock speed fit a 16-core desktop-class AMD chip; that last step is an inference.
+- **What Performance buys is a steady share, not speed.** Its vCPUs are not shared with other workloads. With six of our containers running at once it lost about 10%. Shared and Spot lost about 30%, and the slowest pass lost about 40%.
+- **Shared still won under load.** At its slowest it encoded 27 fps against Performance's median of 22, at under a third of the hourly price.
+- **Six containers is our own load.** Other customers' load on the same hosts was not controlled and could push Shared lower than this.
+- **Performance also varied between runs.** The same binary encoded at 36 fps in the first round and 22 to 26 fps in this one.
+
+Plan capacity with the loaded figures: a split video's pieces run about 30% slower than one piece alone.
+
+**The network differs too.** Every benchmark container downloaded the same 30 MB clip:
+
+| Tier | Containers | Download time |
+| --- | --- | --- |
+| Performance and account default | 9 | 0.16 to 0.97 s, median 0.33 s |
+| Shared | 9 | 1.2 to 2.0 s, median 1.53 s |
+| Spot | 7 | 1.2 to 1.7 s, median 1.38 s |
+
+That is about 20 MB per second on Shared and Spot. A 2 GB video would take around 100 seconds to arrive, which is small beside its encode but large for an image.
+
+### The production image worker on Shared
+
+The owner approved moving the image worker to Shared if a controlled comparison held up. It did not, so production stays on v3.
+
+Setup: `image-processing` v3 (current, account default tier) against v4 (the same code and image with `cpu_tier="shared"`, deployed with `beam-client` 0.2.240). Both have 1 vCPU, 8 GiB and a 60-second idle window. Each cold sample followed two observations of zero running containers. The order alternated each cycle. The timed span is the whole response as the API sees it: the worker call plus the result download. Requests came from a laptop, not from the API. Six cycles, 84 requests, no failures.
+
+| Request | v3, current | v4, Shared |
+| --- | --- | --- |
+| Cold, 12 MP JPEG compress (6 each) | 6.9 s median (5.2 to 14.8) | 10.6 s median (5.9 to 13.3) |
+| Warm, 12 MP JPEG compress (18 each) | 4.2 s median (3.9 to 6.1) | 4.9 s median (4.6 to 12.2) |
+| Warm, 4 MP JPEG to WebP (18 each) | 2.9 s median (2.3 to 5.7) | 3.1 s median (2.6 to 6.7) |
+
+- Outputs were byte-identical between the two versions for both requests.
+- The image work itself takes a few tenths of a second. The rest is the 6.4 MB upload, saving the result and downloading it, and that is where Shared's slower network costs more than its faster processor saves.
+- v4 is stopped and its record kept (deployment `ce99e383-78b4-4570-a03f-831305cb617d`). v3 stayed active throughout and no API setting changed.
+- Raw results are in the ignored `artifacts/deployments/shared-tier-2026-11-15/`.
+
+The warm figures also show that today's image path spends most of its time moving the file through base64 and Beam's file output. Direct uploads to R2 (#6) and the Cloudflare Containers path remove most of that.
 
 ### Presets: size, quality and speed
 
@@ -202,8 +257,8 @@ All four finished inside 8 GiB, so the 500-megapixel target in #6 is feasible fo
 - **Two containers stopped without a known cause.** Both stopped while the Worker carried the WebAssembly test: one around its deploy and one while requests were exceeding the memory limit. A later container survived a redeploy, a background job, and five minutes with no requests. Long jobs should not depend on a Cloudflare container until this is understood.
 - **Cloudflare with internet access off.** Every container here had it on.
 - **Spot interruptions,** their rate and the retry behaviour.
-- **Shared-tier slowdowns under load.** Shared vCPUs can be contended. Four runs varied by about 6%.
-- **Reading and writing R2** from either host.
+- **Shared-tier slowdowns caused by other customers.** Our own six containers slowed each other by about 30%. Load from others was not controlled.
+- **Reading and writing R2** from each Beam tier and from Cloudflare. Shared and Spot downloaded a public file at about 20 MB per second; their speed to R2 is unknown.
 
 ## Revisit when
 
